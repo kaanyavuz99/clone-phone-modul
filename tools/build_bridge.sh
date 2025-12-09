@@ -19,8 +19,8 @@ echo "BUILD SUCCESS!"
 send_log() {
     local line="$1"
     # Execute PowerShell command on VDS to append log
-    # We use single quotes for the PowerShell command string to protect the inner structure
-    ssh Administrator@$VDS_IP "powershell -Command \"Add-Content -Path '$LOG_PATH' -Value '$line'\"" < /dev/null 2> /dev/null
+    # Removed silencers to debug connection
+    ssh Administrator@$VDS_IP "powershell -Command \"Add-Content -Path '$LOG_PATH' -Value '$line'\""
 }
 
 # Example of piping output (Simplified for avoiding complexity with pipe | ssh in bash for now)
