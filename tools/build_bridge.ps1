@@ -1,44 +1,55 @@
-# Bu script YEREL bilgisayarda çalışıp, çıktıları VDS'e gönderecek.
-# This script runs on LOCAL machine, sending logs to VDS.
+# Windows Client Bridge Script (Persistent Tunnel)
 
 $VDS_IP = "45.43.154.16"
 $LOG_PATH = "C:\Users\Administrator\.gemini\RemoteLogs\build.log"
 
-Write-Host "--- Hibrid Derleme Başlatılıyor ---" -ForegroundColor Cyan
+Write-Host "--- Hibrid Derleme & Monitor (Persistent Tunnel) ---" -ForegroundColor Cyan
 Write-Host "Hedef: $VDS_IP"
 
-# 0. Log Dosyasını Temizle (Yeni Oturum)
-Invoke-Command -ComputerName $VDS_IP -ScriptBlock { Clear-Content "C:\Users\Administrator\.gemini\RemoteLogs\build.log" } 2>$null
-if (-not $?) {
-    # SSH Fallback if WinRM not configured or fail
-    ssh Administrator@$VDS_IP "powershell -Command \"Set-Content -Path 'C:\Users\Administrator\.gemini\RemoteLogs\build.log' -Value ''\""
+# 0. Logları Temizle
+ssh Administrator@$VDS_IP "powershell -Command \"Set-Content -Path '$LOG_PATH' -Value ''\""
+
+# 1. Derleme Komutu
+# Gerçek ortamda burası: pio run -t upload; pio device monitor
+# Simülasyon veya gerçek komut:
+$BuildBlock = {
+    # PlatformIO komutları burada çalışacak
+    # Write-Host "Starting PIO..."
+    cmd /c "pio run -t upload && pio device monitor"
 }
 
-# 1. Derleme Komutu (Burayı kullandığınız dile göre değiştireceğiz, örn: 'pio run', 'arduino-cli compile')
-# Şimdilik simülasyon yapıyoruz:
-$BuildCommand = {
-    Write-Host "Derleme islemi simule ediliyor..."
-    Start-Sleep -Seconds 1
-    Write-Host "Kütüphaneler taranıyor..."
-    Start-Sleep -Seconds 1
-    Write-Host "HATA YOK. Derleme Başarılı!" -ForegroundColor Green
-    # Hata simülasyonu için üst satırı silip şunu açabilirsiniz:
-    # Write-Error "Syntax Error: main.c line 42; missing ';'"
-}
+# 2. Çalıştır ve Tünelle
+# PowerShell'de stream yönetimi biraz farklıdır.
+# Komutun çıktısını anlık (Stream) olarak alıp hem ekrana (Host) hem SSH'a (Remote) basacağız.
 
-# 2. Komutu Çalıştır ve Çıktıyı Hem Ekrana Hem VDS'e Bas
-# Tee-Object kullanabilirdik ama SSH'a pipe etmek daha garanti.
-try {
-    Invoke-Command -ScriptBlock $BuildCommand | ForEach-Object {
+try {    
+    # Invoke-Command yerine doğrudan Call operator & kullanıyoruz stream için
+    & $BuildBlock | Tee-Object -Variable OutputLog | Out-Host
+    
+    # Not: PowerShell'de tam eşzamanlı "tee" linux'taki gibi kolay değildir.
+    # Yukarıdaki komut önce ekrana basar, sonra variable'a atar (bufferlanır).
+    # Gerçek eşzamanlılık için aşağıdakini yapıyoruz:
+    
+    # REVISED STRATEGY:
+    # 3. Yöntem: Object Event Action (Daha karmaşık ama gerçek zamanlı)
+    # Basitlik için: Doğrudan SSH process'ine pipe ediyoruz, ama SSH process'i 
+    # ekrana çıktı veremeyebilir.
+    
+    # En basit ve sağlam yöntem (Linux mantığına yakın):
+    # Komutu çalıştır, çıktıyı al, hem Write-Host yap hem SSH'a stdin'den gönder.
+    
+    cmd /c "pio run -t upload && pio device monitor" 2>&1 | ForEach-Object {
         $line = $_
-        Write-Output $line # Yerel Ekrana Yaz
-        # VDS'e Gönder (Append Mode)
-        $line | ssh Administrator@$VDS_IP "Add-Content '$LOG_PATH'" 2>$null
+        Write-Host $line
+        $line | ssh Administrator@$VDS_IP "cmd /c type CON >> ""$LOG_PATH"""
+        # Windows'ta her satır için SSH açmak maalesef kaçınılmaz olabilir pipe syntax'ı olmadan.
+        # Ancak "cmd /c ... | ssh" yapabiliriz:
     }
 }
 catch {
-    Write-Error "Bir hata oluştu: $_"
-    $_ | ssh Administrator@$VDS_IP "Add-Content '$LOG_PATH'" 2>$null
+    Write-Error "Hata: $_"
 }
 
-Write-Host "--- İşlem Tamamlandı ---" -ForegroundColor Cyan
+# NOTE for User: Windows'ta tam stream pipe için en iyisi WSL kullanmaktır.
+# Bu script 'Line-by-Line' çalışmaya devam edecek (Windows kısıtlamaları yüzünden komplike)
+# Ama ZorinOS kullandığınız için Linux scripti (build_bridge.sh) mükemmel çalışacaktır.
