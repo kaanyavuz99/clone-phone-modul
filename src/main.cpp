@@ -23,10 +23,17 @@ const char *ap_pass = "12345678";
 // #include "lwip/ip_addr.h"
 // #include "lwip/err.h"
 
+// LED Pin (Commonly GPIO 12 on LILYGO T-SIM series)
+#define LED_PIN 12
+
 void setup() {
   SerialMon.begin(115200);
   delay(1000);
   SerialMon.println("Starting LILYGO Router (Pure Arduino Mode)...");
+
+  // 0. Setup LED
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, HIGH); // Turn on initially
 
   // 1. Initialize Modem Pins
   pinMode(MODEM_PWRKEY, OUTPUT);
@@ -36,10 +43,10 @@ void setup() {
   pinMode(MODEM_RST, OUTPUT);
   digitalWrite(MODEM_RST, HIGH);
 
-  // 2. Power On Sequence
-  SerialMon.println("Powering on modem...");
+  // 2. Power On Sequence (Extended to 1s for reliability)
+  SerialMon.println("Powering on modem (1s pulse)...");
   digitalWrite(MODEM_PWRKEY, HIGH);
-  delay(300);
+  delay(1000); // Increased from 300ms to 1000ms
   digitalWrite(MODEM_PWRKEY, LOW);
 
   // 3. Initialize Serial1 for Modem
@@ -62,6 +69,13 @@ void setup() {
 }
 
 void loop() {
+  // Heartbeat LED (Blink every 1 second)
+  static uint32_t lastBlink = 0;
+  if (millis() - lastBlink > 1000) {
+    lastBlink = millis();
+    digitalWrite(LED_PIN, !digitalRead(LED_PIN));
+  }
+
   // Simple Serial Bridge
   if (SerialAT.available()) {
     SerialMon.write(SerialAT.read());
