@@ -45,10 +45,12 @@ echo "Executing Build..."
     # Send to Remote via Mux Socket
     # Escaping single quotes for PowerShell: ' -> ''
     # Using 'cmd /c echo ... >> file' might be faster than powershell for simple text, but encoding is tricky.
-    # Sticking to PowerShell Add-Content for safety.
-    clean_line=${line//\'/\'\'}
-    ssh -S "$SSH_SOCKET" Administrator@$VDS_IP "powershell -Command \"Add-Content -Path '$LOG_PATH' -Value '$clean_line'\""
-    # Removed background (&) to prevent Windows File Locking race conditions
+    # Base64 Encode to avoid ANY shell escaping issues (Bulletproof)
+    b64info=$(echo -n "$line" | base64 -w 0)
+    
+    # Decode and Append on Windows VDS
+    # We use a compact PowerShell command to decode and append
+    ssh -S "$SSH_SOCKET" Administrator@$VDS_IP "powershell -Command \"\$d = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('$b64info')); Add-Content -Path '$LOG_PATH' -Value \$d -Force\""
 done
 
 wait # Wait for any background log senders to finish
