@@ -2,56 +2,29 @@
 
 # VDS Information
 VDS_IP="45.43.154.16"
+# This path must match where the repo is cloned on the VDS
+REMOTE_REPO_PATH="C:\\Users\\Administrator\\.gemini\\antigravity\\scratch\\HibridProje"
+RECEIVER_SCRIPT="$REMOTE_REPO_PATH\\tools\\receiver.ps1"
 LOG_PATH="C:\\Users\\Administrator\\.gemini\\RemoteLogs\\build.log"
-SSH_SOCKET="/tmp/pio_bridge_mux_%h_%p_%r"
 
-echo "--- Hybrid Build & Monitor (High-Speed Mux Mode) ---"
+echo "--- Hybrid Build & Monitor (Stream Pipe Mode) ---"
 echo "Target VDS: $VDS_IP"
 
-# 1. Start SSH Master Connection (Multiplexing)
-# -M: Master mode
-# -S: Socket path
-# -f: Go to background
-# -N: Do not execute a remote command
-# -n: Redirect stdin from /dev/null
-echo "Establishing high-speed link..."
-ssh -M -S "$SSH_SOCKET" -fnNT -o ConnectTimeout=10 Administrator@$VDS_IP
-
-# Function to clean up the master connection on exit
-cleanup() {
-    echo "Closing link..."
-    ssh -S "$SSH_SOCKET" -O exit Administrator@$VDS_IP 2>/dev/null
-}
-trap cleanup EXIT
-
-# 2. Clear old logs using the socket
-ssh -S "$SSH_SOCKET" Administrator@$VDS_IP "powershell -Command \"Set-Content -Path '$LOG_PATH' -Value ''\""
-
-# 3. Execution & Logging Loop
-# We use a simple while loop. With the persistent socket, each 'ssh' call is nearly instant.
+# 1. Locate PlatformIO Core
 PIO_CMD="pio"
 [ -f "$HOME/.platformio/penv/bin/pio" ] && PIO_CMD="$HOME/.platformio/penv/bin/pio"
 
-echo "Executing Build..."
+# 2. Clear previous logs
+ssh Administrator@$VDS_IP "powershell -Command \"Set-Content -Path '$LOG_PATH' -Value ''\""
 
+# 3. Execution (The Simple Pipe)
+echo "Starting Stream..."
+
+# We pipe the output directly to the remote receiver script.
+# The receiver script reads Stdin and writes to the log file.
 (
-    # Start the build and monitor
     $PIO_CMD run -t upload && \
     $PIO_CMD device monitor
-) 2>&1 | while IF= read -r line; do
-    # Print to Local Screen
-    echo "$line"
-    
-    # Send to Remote via Mux Socket
-    # Escaping single quotes for PowerShell: ' -> ''
-    # Using 'cmd /c echo ... >> file' might be faster than powershell for simple text, but encoding is tricky.
-    # Base64 Encode to avoid ANY shell escaping issues (Bulletproof)
-    b64info=$(echo -n "$line" | base64 -w 0)
-    
-    # Decode and Append on Windows VDS
-    # We use a compact PowerShell command to decode and append
-    ssh -S "$SSH_SOCKET" Administrator@$VDS_IP "powershell -Command \"\$d = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('$b64info')); Add-Content -Path '$LOG_PATH' -Value \$d -Force\""
-done
+) 2>&1 | ssh Administrator@$VDS_IP "powershell -ExecutionPolicy Bypass -File \"$RECEIVER_SCRIPT\""
 
-wait # Wait for any background log senders to finish
 echo "--- Process Complete ---"
