@@ -1,8 +1,13 @@
 # Receiver Script (Runs on VDS)
-# Reads stream from SSH Stdin and writes to log file
-# This avoids complex quoting/escaping issues in the SSH command itself.
+param (
+    [string]$LogName = "build_unknown.log"
+)
 
-$LogPath = "C:\Users\Administrator\.gemini\RemoteLogs\build.log"
+$LogDir = "C:\Users\Administrator\.gemini\RemoteLogs"
+# Ensure dir exists (just in case)
+if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory -Path $LogDir | Out-Null }
+
+$LogPath = Join-Path $LogDir $LogName
 
 try {
     # .NET way to write with Shared Access (ignores active readers)

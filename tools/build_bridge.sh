@@ -14,17 +14,18 @@ echo "Target VDS: $VDS_IP"
 PIO_CMD="pio"
 [ -f "$HOME/.platformio/penv/bin/pio" ] && PIO_CMD="$HOME/.platformio/penv/bin/pio"
 
-# 2. Clear previous logs
-ssh Administrator@$VDS_IP "powershell -Command \"Set-Content -Path '$LOG_PATH' -Value ''\""
+# 2. Generate Unique Session ID (Avoids Windows File Locking)
+SESSION_ID=$(date +%s)
+LOG_FILENAME="build_${SESSION_ID}.log"
+echo "Session Log File: $LOG_FILENAME"
 
 # 3. Execution (The Simple Pipe)
 echo "Starting Stream..."
 
-# We pipe the output directly to the remote receiver script.
-# The receiver script reads Stdin and writes to the log file.
+# We pipe output to receiver.ps1, passing the unique filename
 (
     $PIO_CMD run -t upload && \
     $PIO_CMD device monitor
-) 2>&1 | ssh Administrator@$VDS_IP "powershell -ExecutionPolicy Bypass -File \"$RECEIVER_SCRIPT\""
+) 2>&1 | ssh Administrator@$VDS_IP "powershell -ExecutionPolicy Bypass -File \"$RECEIVER_SCRIPT\" -LogName \"$LOG_FILENAME\""
 
 echo "--- Process Complete ---"
