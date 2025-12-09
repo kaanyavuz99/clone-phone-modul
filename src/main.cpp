@@ -1,41 +1,36 @@
 #include <Arduino.h>
 
-// Pin Definitions (Passed from platformio.ini)
-#define RX_PIN MODEM_RX
-#define TX_PIN MODEM_TX
-#define PWR_PIN MODEM_PWRKEY
+// Pin Definitions
+#define RX_PIN 26
+#define TX_PIN 27
+#define PWR_PIN 4
 
 void setup() {
-    // 1. Initialize USB Serial for Logs
-    Serial.begin(115200);
-    while (!Serial);
-    Serial.println("\n--- T-SIM7600E connectivity test start ---");
-    
-    // 2. Initialize Modem Serial
-    Serial1.begin(115200, SERIAL_8N1, RX_PIN, TX_PIN);
-    
-    // 3. Power On Sequence
-    Serial.println("Powering on modem...");
-    pinMode(PWR_PIN, OUTPUT);
-    digitalWrite(PWR_PIN, HIGH);
-    delay(300); // Pulse
-    digitalWrite(PWR_PIN, LOW);
-    
-    Serial.println("Waiting for modem to boot (10s)...");
-    delay(10000); 
+  Serial.begin(115200);
+  Serial1.begin(115200, SERIAL_8N1, RX_PIN, TX_PIN);
 
-    // 4. Basic Test
-    Serial.println("Sending AT...");
-    Serial1.println("AT");
+  pinMode(PWR_PIN, OUTPUT);
+  digitalWrite(PWR_PIN, HIGH);
+  delay(300);
+  digitalWrite(PWR_PIN, LOW);
+
+  Serial.println("\n--- Live Monitor Test ---");
+  Serial.println("I will send a message every 2 seconds.");
 }
 
 void loop() {
-    // Forward Modem -> USB
-    if (Serial1.available()) {
-        Serial.write(Serial1.read());
-    }
-    // Forward USB -> Modem (for interactive testing)
-    if (Serial.available()) {
-        Serial1.write(Serial.read());
-    }
+  // 1. Heartbeat - Shows the agent is "watching"
+  static unsigned long lastPrint = 0;
+  if (millis() - lastPrint > 2000) {
+    lastPrint = millis();
+    Serial.print("[Heartbeat] System Uptime: ");
+    Serial.print(millis() / 1000);
+    Serial.println(" seconds");
+  }
+
+  // 2. Passthrough - Allows seeing modem response
+  if (Serial1.available())
+    Serial.write(Serial1.read());
+  if (Serial.available())
+    Serial1.write(Serial.read());
 }
