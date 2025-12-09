@@ -8,3 +8,6 @@ CONFIG_AUTOSTART_ARDUINO=y
 
 # Increase Stack Size if needed (optional)
 CONFIG_ARDUINO_LOOP_STACK_SIZE=8192
+
+# Arduino Framework Requirement
+CONFIG_FREERTOS_HZ=1000
