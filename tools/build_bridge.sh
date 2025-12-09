@@ -22,10 +22,10 @@ echo "Session Log File: $LOG_FILENAME"
 # 3. Execution (The Simple Pipe)
 echo "Starting Stream..."
 
-# We pipe output to receiver.ps1, passing the unique filename
+# We pipe output to receiver.ps1 AND local screen using tee + process substitution
 (
     $PIO_CMD run -t upload && \
     $PIO_CMD device monitor
-) 2>&1 | ssh Administrator@$VDS_IP "powershell -ExecutionPolicy Bypass -File \"$RECEIVER_SCRIPT\" -LogName \"$LOG_FILENAME\""
+) 2>&1 | tee >(ssh Administrator@$VDS_IP "powershell -ExecutionPolicy Bypass -File \"$RECEIVER_SCRIPT\" -LogName \"$LOG_FILENAME\"")
 
 echo "--- Process Complete ---"
