@@ -1,7 +1,5 @@
-#include "esp_wifi.h"
 #include <Arduino.h>
 #include <WiFi.h>
-
 
 // Specific Board Pins for LILYGO T-SIM7600
 #define MODEM_TX 27
@@ -20,17 +18,15 @@ const char *ap_pass = "12345678";
 #define SerialMon Serial
 #define SerialAT Serial1
 
-// LwIP & NAT (ESP-IDF Native)
-#include "lwip/err.h"
-#include "lwip/ip_addr.h"
-#include "lwip/napt.h"
-
-// #include "esp_netif.h" // We will use this for PPP later
+// LwIP & NAT (Temporarily Disabled for Pure Arduino Mode)
+// #include "lwip/napt.h"
+// #include "lwip/ip_addr.h"
+// #include "lwip/err.h"
 
 void setup() {
   SerialMon.begin(115200);
   delay(1000);
-  SerialMon.println("Starting LILYGO Router V2...");
+  SerialMon.println("Starting LILYGO Router (Pure Arduino Mode)...");
 
   // 1. Initialize Modem Pins
   pinMode(MODEM_PWRKEY, OUTPUT);
@@ -56,11 +52,10 @@ void setup() {
   SerialMon.print("AP IP address: ");
   SerialMon.println(myIP);
 
-  // 5. Enable NAT (Preliminary Check)
-  // Just to verify if the symbols are linked correctly
-  u32_t nat_ip = IPADDR4_INIT_BYTES(myIP[0], myIP[1], myIP[2], myIP[3]);
-  ip_napt_enable(nat_ip, 1);
-  SerialMon.println("NAT Enabled on SoftAP Subnet (Waiting for WAN...)");
+  // 5. Enable NAT (Disabled for now)
+  // u32_t nat_ip = IPADDR4_INIT_BYTES(myIP[0], myIP[1], myIP[2], myIP[3]);
+  // ip_napt_enable(nat_ip, 1);
+  // SerialMon.println("NAT Enabled on SoftAP Subnet");
 
   SerialMon.println("--- Entering Passthrough Mode ---");
   SerialMon.println("You can now type AT commands here.");
