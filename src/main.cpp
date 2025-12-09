@@ -74,6 +74,11 @@ void loop() {
   if (millis() - lastBlink > 1000) {
     lastBlink = millis();
     digitalWrite(LED_PIN, !digitalRead(LED_PIN));
+
+    // Print verify message every 5 seconds
+    if (millis() % 5000 < 100) {
+      SerialMon.printf("ESP32 Alive! System Uptime: %lu s\n", millis() / 1000);
+    }
   }
 
   // Simple Serial Bridge
