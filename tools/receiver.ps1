@@ -5,9 +5,20 @@
 $LogPath = "C:\Users\Administrator\.gemini\RemoteLogs\build.log"
 
 try {
-    # $Input is the automatic variable for Stdin in PowerShell
-    $Input | Out-File -FilePath $LogPath -Append -Encoding UTF8 -Force
+    # .NET way to write with Shared Access (ignores active readers)
+    $Stream = [System.IO.File]::Open($LogPath, [System.IO.FileMode]::Append, [System.IO.FileAccess]::Write, [System.IO.FileShare]::ReadWrite)
+    $Writer = New-Object System.IO.StreamWriter($Stream, [System.Text.Encoding]::UTF8)
+    
+    # Process Stdin Stream
+    $Input | ForEach-Object {
+        $Writer.WriteLine($_)
+        $Writer.Flush() # Ensure real-time update
+    }
 }
 catch {
     Write-Error "Receiver Error: $_"
+}
+finally {
+    if ($Writer) { $Writer.Close() }
+    if ($Stream) { $Stream.Close() }
 }
