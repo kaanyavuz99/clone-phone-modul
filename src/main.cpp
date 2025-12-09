@@ -18,10 +18,11 @@ const char *ap_pass = "12345678";
 #define SerialMon Serial
 #define SerialAT Serial1
 
-// LwIP & NAT (Temporarily Disabled for Pure Arduino Mode)
-// #include "lwip/napt.h"
-// #include "lwip/ip_addr.h"
-// #include "lwip/err.h"
+// LwIP & NAT
+#include "lwip/err.h"
+#include "lwip/ip_addr.h"
+#include "lwip/napt.h"
+
 
 // LED Pin (Commonly GPIO 12 on LILYGO T-SIM series)
 #define LED_PIN 12
