@@ -7,6 +7,12 @@ $LogDir = "C:\Users\Administrator\.gemini\RemoteLogs"
 # Ensure dir exists (just in case)
 if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory -Path $LogDir | Out-Null }
 
+# AUTO-CLEANUP: Delete previous session logs
+# We remove all build_*.log files that are NOT the current session's file.
+Get-ChildItem -Path $LogDir -Filter "build_*.log" | 
+Where-Object { $_.Name -ne $LogName } | 
+Remove-Item -Force -ErrorAction SilentlyContinue
+
 $LogPath = Join-Path $LogDir $LogName
 
 try {
