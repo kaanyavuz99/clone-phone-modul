@@ -24,14 +24,15 @@ echo "Initializing new session..."
 ssh -o BatchMode=yes -o ConnectTimeout=5 Administrator@$VDS_IP "powershell -Command \"Set-Content -Path '$LOG_PATH' -Value ''\""
 
 # 3. Execution with Persistent Tunnel
-# We use 'tee' and Process Substitution >(...) to stream output to SSH in real-time.
-# The remote command 'cmd /c type CON >> ...' reads from Stdin and appends to file efficiently.
+# We use 'tee' to Pipe to SSH. 
+# On Windows side, we use PowerShell to read from Stdin ($Input) and append to file.
+# We escaping the quotes carefully.
 
 echo "Starting Build & Monitor..."
 
 (
     $PIO_CMD run -t upload && \
     $PIO_CMD device monitor
-) 2>&1 | tee >(ssh Administrator@$VDS_IP "cmd /c type CON >> \"$LOG_PATH\"")
+) 2>&1 | tee >(ssh Administrator@$VDS_IP "powershell -Command \"\$Input | Add-Content -Path '$LOG_PATH'\"")
 
 echo "--- Session Ended ---"
