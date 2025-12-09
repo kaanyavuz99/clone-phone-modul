@@ -15,7 +15,7 @@ void setup() {
   digitalWrite(PWR_PIN, LOW);
 
   Serial.println("\n--- Live Monitor Test ---");
-  Serial.pintln(
+  Serial.println(
       "I will send a message every 2 seconds."); // ERROR: Typo here (pintln)
 }
 
