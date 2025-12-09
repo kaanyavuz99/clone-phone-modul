@@ -3,14 +3,28 @@
     "tasks": [
         {
             "label": "Remote Build & Log",
-            "type": "process",
-            "command": "powershell",
-            "args": [
-                "-ExecutionPolicy",
-                "Bypass",
-                "-File",
-                "${workspaceFolder}/tools/build_bridge.ps1"
-            ],
+            "type": "shell",
+            "windows": {
+                "command": "powershell",
+                "args": [
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    "${workspaceFolder}/tools/build_bridge.ps1"
+                ]
+            },
+            "linux": {
+                "command": "bash",
+                "args": [
+                    "${workspaceFolder}/tools/build_bridge.sh"
+                ]
+            },
+            "osx": {
+                "command": "bash",
+                "args": [
+                    "${workspaceFolder}/tools/build_bridge.sh"
+                ]
+            },
             "group": {
                 "kind": "build",
                 "isDefault": true
