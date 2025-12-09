@@ -26,6 +26,12 @@ We have successfully established a Hybrid Development Environment:
 - `tools/receiver.ps1`: runs on VDS, handles log writing.
 - `src/main.cpp`: The firmware.
 
+## 🔄 What if VDS Reboots?
+- **Settings are Permanent:** SSH keys, Firewall rules, and Git repos **WILL** survive a reboot. You do NOT need to redo them.
+- **IP Address:** If your VDS has a dynamic IP, it might change after a restart.
+    - **Fix:** Just update `VDS_IP="..."` in `tools/build_bridge.sh`.
+    - Everything else will continue working automatically.
+
 ## 🚀 How to Resume
 1.  **Open this folder.**
 2.  **Read `task.md`** (it has the detailed checklist).
