@@ -7,6 +7,10 @@ LOG_PATH="C:\\Users\\Administrator\\.gemini\\RemoteLogs\\build.log"
 echo "--- Hybrid Build & Monitor Starting ---"
 echo "Target VDS: $VDS_IP"
 
+# 0. Clear previous logs (New Session)
+echo "Initializing new session..."
+ssh Administrator@$VDS_IP "powershell -Command \"Set-Content -Path '$LOG_PATH' -Value ''\""
+
 # 1. Locate PlatformIO Core
 PIO_CMD="pio"
 if ! command -v pio &> /dev/null; then

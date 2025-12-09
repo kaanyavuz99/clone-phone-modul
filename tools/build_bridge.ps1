@@ -7,6 +7,13 @@ $LOG_PATH = "C:\Users\Administrator\.gemini\RemoteLogs\build.log"
 Write-Host "--- Hibrid Derleme Başlatılıyor ---" -ForegroundColor Cyan
 Write-Host "Hedef: $VDS_IP"
 
+# 0. Log Dosyasını Temizle (Yeni Oturum)
+Invoke-Command -ComputerName $VDS_IP -ScriptBlock { Clear-Content "C:\Users\Administrator\.gemini\RemoteLogs\build.log" } 2>$null
+if (-not $?) {
+    # SSH Fallback if WinRM not configured or fail
+    ssh Administrator@$VDS_IP "powershell -Command \"Set-Content -Path 'C:\Users\Administrator\.gemini\RemoteLogs\build.log' -Value ''\""
+}
+
 # 1. Derleme Komutu (Burayı kullandığınız dile göre değiştireceğiz, örn: 'pio run', 'arduino-cli compile')
 # Şimdilik simülasyon yapıyoruz:
 $BuildCommand = {
@@ -28,7 +35,8 @@ try {
         # VDS'e Gönder (Append Mode)
         $line | ssh Administrator@$VDS_IP "Add-Content '$LOG_PATH'" 2>$null
     }
-} catch {
+}
+catch {
     Write-Error "Bir hata oluştu: $_"
     $_ | ssh Administrator@$VDS_IP "Add-Content '$LOG_PATH'" 2>$null
 }
