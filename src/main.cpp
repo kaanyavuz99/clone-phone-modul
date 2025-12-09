@@ -6,8 +6,9 @@
 #define PWR_PIN 4
 
 void setup() {
-  Serial.begin(115200);
-  Serial1.begin(115200, SERIAL_8N1, RX_PIN, TX_PIN);
+  Serial
+      .begin(115200) // ERROR: Missing semicolon here!
+      Serial1.begin(115200, SERIAL_8N1, RX_PIN, TX_PIN);
 
   pinMode(PWR_PIN, OUTPUT);
   digitalWrite(PWR_PIN, HIGH);
