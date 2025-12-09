@@ -47,8 +47,8 @@ echo "Executing Build..."
     # Using 'cmd /c echo ... >> file' might be faster than powershell for simple text, but encoding is tricky.
     # Sticking to PowerShell Add-Content for safety.
     clean_line=${line//\'/\'\'}
-    ssh -S "$SSH_SOCKET" Administrator@$VDS_IP "powershell -Command \"Add-Content -Path '$LOG_PATH' -Value '$clean_line'\"" &
-    # We put it in background (&) to not block the build process!
+    ssh -S "$SSH_SOCKET" Administrator@$VDS_IP "powershell -Command \"Add-Content -Path '$LOG_PATH' -Value '$clean_line'\""
+    # Removed background (&) to prevent Windows File Locking race conditions
 done
 
 wait # Wait for any background log senders to finish
