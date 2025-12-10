@@ -4,10 +4,10 @@
 #include "lwip/err.h"
 #include "lwip/ip_addr.h"
 #include "lwip/netif.h"
+#include "netif/ppp/ppp.h"
 #include "netif/ppp/pppos.h"
 #include <Arduino.h>
 #include <WiFi.h>
-
 
 // --- Configuration ---
 const char *ap_ssid = "LILYGO-4G-Router-Pro";
@@ -22,7 +22,6 @@ const char *ap_pass = "12345678";
 // --- LwIP & NAPT Headers ---
 #include "lwip/dns.h"
 #include "lwip/err.h"
-
 
 // Forward Declaration for NAPT (Bypasses missing header in Arduino context)
 #if !defined(ip_napt_enable)
