@@ -53,20 +53,30 @@ def patch_spinlock_in_dir(package_dir):
                 import re
                 pattern = r'RSR\s*\(\s*PRID\s*,'
                 
+                # DEBUG: Print file content to understand the Macro definition
+                lines = content.splitlines()
+                print(f"--- [ANTIGRAVITY] FILE HEAD ({spinlock_path}): ---")
+                for i in range(min(50, len(lines))):
+                     print(f"{i+1}: {lines[i]}")
+                
+                print(f"--- [ANTIGRAVITY] CONTEXT AROUND LINE 83: ---")
+                if len(lines) > 85:
+                    for i in range(80, 86):
+                        print(f"{i+1}: {lines[i]}")
+                
                 if re.search(pattern, content, re.IGNORECASE):
-                    print(f"--- [ANTIGRAVITY] FOUND 'RSR(PRID)' in {spinlock_path}. INJECTING TRACER ERROR... ---")
-                    # Replace with a compile-time error to prove we are touching the right file
-                    new_content = re.sub(pattern, '#error "ANTIGRAVITY_TRACER_CONFIRMED"', content, flags=re.IGNORECASE)
+                    print(f"--- [ANTIGRAVITY] FOUND 'RSR(PRID)' in {spinlock_path}. Patching to ASM... ---")
+                    # Replace with direct assembly to bypass the macro entirely
+                    # __asm__ __volatile__("rsr %0, 235" : "=r"(core_id));
+                    replacement = '__asm__ __volatile__("rsr %0, 235" : "=r"(core_id));'
+                    new_content = re.sub(r'RSR\s*\(\s*PRID\s*,\s*core_id\s*\)\s*;', replacement, content, flags=re.IGNORECASE)
+                    
                     with open(spinlock_path, "w") as f:
                         f.write(new_content)
-                    print(f"--- [ANTIGRAVITY] SUCCESS: {spinlock_path} poisoned with tracer. ---")
+                    print(f"--- [ANTIGRAVITY] SUCCESS: {spinlock_path} patched with ASM. ---")
                 
-                elif 'ANTIGRAVITY_TRACER' in content:
-                    print(f"--- [ANTIGRAVITY] ALREADY POISONED: {spinlock_path} ---")
-
-                # Double check verification for logging
-                if 'ANTIGRAVITY_TRACER' in content:
-                     print(f"--- [ANTIGRAVITY] INFO: {spinlock_path} contains TRACER error. ---")
+                elif 'rsr %0, 235' in content:
+                     print(f"--- [ANTIGRAVITY] ALREADY PATCHED WITH ASM: {spinlock_path} ---")
 
             except Exception as e:
                 print(f"--- [ANTIGRAVITY] EXCEPTION processing {spinlock_path}: {e} ---")
