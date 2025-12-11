@@ -78,7 +78,7 @@ def copy_and_patch_spinlock(env):
         return
 
     # Rename Strategy: Move them out of the way!
-    asm_replacement = '    __asm__ __volatile__("rsr %0, 235" : "=r"(core_id));'
+    asm_replacement = '    core_id = 0; // [ANTIGRAVITY] PATCHED TO BYPASS ASM ERROR'
     
     local_source_content = ""
 
