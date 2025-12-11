@@ -49,8 +49,7 @@ def patch_spinlock(env):
                 content = f.read()
             
             # Patch: Replace RSR(PRID, ...) with RSR(0xEB, ...)
-            # PRID register index is 0xEB (235) on ESP32 Xtensa LX6
-            # This bypasses the assemblers issue with the symbolic name 'PRID'
+            # We also need to fix the previous failed patch (RSR(prid, ...))
             if "RSR(PRID," in content:
                 print(f"--- [ANTIGRAVITY] PATCHING 'RSR(PRID,' to 'RSR(0xEB,' in spinlock.h... ---")
                 new_content = content.replace("RSR(PRID,", "RSR(0xEB,")
@@ -58,7 +57,13 @@ def patch_spinlock(env):
                     f.write(new_content)
                 print(f"--- [ANTIGRAVITY] SUCCESS: spinlock.h patched. ---")
             elif "RSR(prid," in content:
-                 print(f"--- [ANTIGRAVITY] spinlock.h ALREADY PATCHED (lowercase). ---")
+                 print(f"--- [ANTIGRAVITY] RE-PATCHING 'RSR(prid,' (failed attempt) to 'RSR(0xEB,'... ---")
+                 new_content = content.replace("RSR(prid,", "RSR(0xEB,")
+                 with open(spinlock_path, "w") as f:
+                    f.write(new_content)
+                 print(f"--- [ANTIGRAVITY] SUCCESS: spinlock.h re-patched. ---")
+            elif "RSR(0xEB," in content:
+                 print(f"--- [ANTIGRAVITY] spinlock.h ALREADY PATCHED (numeric). ---")
             else:
                  print(f"--- [ANTIGRAVITY] WARNING: 'RSR(PRID,' not found in spinlock.h. ---")
 
