@@ -64,18 +64,29 @@ def patch_spinlock_in_dir(package_dir):
                     for i in range(80, 86):
                         print(f"{i+1}: {lines[i]}")
                 
+                # Define the detailed ASM replacement
+                asm_replacement = '__asm__ __volatile__("rsr %0, 235" : "=r"(core_id));'
+                
+                # Check for original RSR(PRID...)
                 if re.search(pattern, content, re.IGNORECASE):
                     print(f"--- [ANTIGRAVITY] FOUND 'RSR(PRID)' in {spinlock_path}. Patching to ASM... ---")
-                    # Replace with direct assembly to bypass the macro entirely
-                    # __asm__ __volatile__("rsr %0, 235" : "=r"(core_id));
-                    replacement = '__asm__ __volatile__("rsr %0, 235" : "=r"(core_id));'
-                    new_content = re.sub(r'RSR\s*\(\s*PRID\s*,\s*core_id\s*\)\s*;', replacement, content, flags=re.IGNORECASE)
-                    
+                    new_content = re.sub(r'RSR\s*\(\s*PRID\s*,\s*core_id\s*\)\s*;', asm_replacement, content, flags=re.IGNORECASE)
                     with open(spinlock_path, "w") as f:
                         f.write(new_content)
-                    print(f"--- [ANTIGRAVITY] SUCCESS: {spinlock_path} patched with ASM. ---")
+                    print(f"--- [ANTIGRAVITY] SUCCESS: {spinlock_path} patched with ASM (from PRID). ---")
+                    # Update content for next check
+                    content = new_content
+
+                # Check for previously failed patch RSR(0xEB...)
+                pattern_0xeb = r'RSR\s*\(\s*0xEB\s*,\s*core_id\s*\)\s*;'
+                if re.search(pattern_0xeb, content, re.IGNORECASE):
+                    print(f"--- [ANTIGRAVITY] FOUND 'RSR(0xEB)' in {spinlock_path}. upgrading to ASM... ---")
+                    new_content = re.sub(pattern_0xeb, asm_replacement, content, flags=re.IGNORECASE)
+                    with open(spinlock_path, "w") as f:
+                        f.write(new_content)
+                    print(f"--- [ANTIGRAVITY] SUCCESS: {spinlock_path} patched with ASM (from 0xEB). ---")
                 
-                elif 'rsr %0, 235' in content:
+                if 'rsr %0, 235' in content:
                      print(f"--- [ANTIGRAVITY] ALREADY PATCHED WITH ASM: {spinlock_path} ---")
 
             except Exception as e:
