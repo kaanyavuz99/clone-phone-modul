@@ -48,26 +48,18 @@ def patch_spinlock(env):
             with open(spinlock_path, "r") as f:
                 content = f.read()
             
-            # Debug: Print lines 80-90 to see exactly what is there
-            lines = content.splitlines()
-            print("--- [ANTIGRAVITY] DEBUG: spinlock.h content around line 83: ---")
-            for i in range(max(0, 75), min(len(lines), 90)):
-                 print(f"{i+1}: {lines[i]}")
-            
-            # Patch attempts with regex to be safer?
-            # Let's try to match case-insensitive or partial
-            if "rsr.PRID" in content:
-                print(f"--- [ANTIGRAVITY] PATCHING 'rsr.PRID' to 'rsr.prid'... ---")
-                new_content = content.replace("rsr.PRID", "rsr.prid")
+            # Patch: Replace RSR(PRID, ...) with RSR(prid, ...)
+            # The macro usage is what generates the assembly opcode
+            if "RSR(PRID," in content:
+                print(f"--- [ANTIGRAVITY] PATCHING 'RSR(PRID,' to 'RSR(prid,' in spinlock.h... ---")
+                new_content = content.replace("RSR(PRID,", "RSR(prid,")
                 with open(spinlock_path, "w") as f:
                     f.write(new_content)
-            elif "RSR.PRID" in content:
-                print(f"--- [ANTIGRAVITY] PATCHING 'RSR.PRID' to 'rsr.prid'... ---")
-                new_content = content.replace("RSR.PRID", "rsr.prid")
-                with open(spinlock_path, "w") as f:
-                    f.write(new_content)
+                print(f"--- [ANTIGRAVITY] SUCCESS: spinlock.h patched. ---")
+            elif "RSR(prid," in content:
+                 print(f"--- [ANTIGRAVITY] spinlock.h ALREADY PATCHED (lowercase). ---")
             else:
-                 print(f"--- [ANTIGRAVITY] WARNING: Exact 'rsr.PRID' string not found. See debug output above. ---")
+                 print(f"--- [ANTIGRAVITY] WARNING: 'RSR(PRID,' not found in spinlock.h. ---")
 
     except Exception as e:
         print(f"--- [ANTIGRAVITY] EXCEPTION: {e} ---")
