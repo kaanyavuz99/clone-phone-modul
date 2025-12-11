@@ -46,6 +46,14 @@ def patch_spinlock_in_dir(package_dir):
             
             print(f"--- [ANTIGRAVITY] CHECKING: {spinlock_path} ---")
             
+            # Check for symlinks
+            if os.path.islink(spinlock_path):
+                real_path = os.path.realpath(spinlock_path)
+                print(f"--- [ANTIGRAVITY] DETECTED SYMLINK: {spinlock_path} -> {real_path} ---")
+                spinlock_path = real_path
+            else:
+                print(f"--- [ANTIGRAVITY] REALPATH: {os.path.realpath(spinlock_path)} ---")
+            
             try:
                 with open(spinlock_path, "r") as f:
                     content = f.read()
