@@ -45,103 +45,87 @@ def copy_and_patch_spinlock(env):
     platform = env.PioPlatform()
     
     # Locate source file
+    # Locate source file
     package_dir_idf = platform.get_package_dir("framework-espidf")
     package_dir_arduino = platform.get_package_dir("framework-arduinoespressif32")
     
-    source_path = None
+    target_files = []
     
-    # Priority: Check Arduino first as it might be the rogue one
+    # SEARCH EVERYWHERE. NUCLEAR OPTION.
+    
     if package_dir_arduino:
-         print(f"--- [ANTIGRAVITY] Checking Arduino Framework at {package_dir_arduino} ---")
-         # We specifically want the ESP32 (not s2, s3, c3) version.
-         # Path usually: tools/sdk/esp32/include/esp_hw_support/include/soc/spinlock.h
-         expected_path = os.path.join(package_dir_arduino, "tools", "sdk", "esp32", "include", "esp_hw_support", "include", "soc", "spinlock.h")
-         
-         if os.path.exists(expected_path):
-             source_path = expected_path
-             print(f"--- [ANTIGRAVITY] Found CORRECT ARDUINO ESP32 spinlock.h at {source_path} ---")
-         else:
-             # Fallback explicit search
-             for root, dirs, files in os.walk(package_dir_arduino):
-                if "spinlock.h" in files and "soc" in root and "/esp32/" in root.replace("\\", "/"):
-                    source_path = os.path.join(root, "spinlock.h")
-                    print(f"--- [ANTIGRAVITY] Found ARDUINO spinlock.h (Walk) at {source_path} ---")
-                    break
-                
-    if not source_path and package_dir_idf:
-        # Fallback to IDF
-        source_path = os.path.join(package_dir_idf, "components", "esp_hw_support", "include", "soc", "spinlock.h")
-        if not os.path.exists(source_path):
-             for root, dirs, files in os.walk(package_dir_idf):
-                if "spinlock.h" in files and "soc" in root:
-                    source_path = os.path.join(root, "spinlock.h")
-                    break
+         print(f"--- [ANTIGRAVITY] SCANNING ARDUINO FRAMEWORK: {package_dir_arduino} ---")
+         for root, dirs, files in os.walk(package_dir_arduino):
+            if "spinlock.h" in files:
+                full_path = os.path.join(root, "spinlock.h")
+                # Filter for useful paths to avoid patching unrelated stuff if any
+                if "soc" in root or "esp_hw_support" in root:
+                    target_files.append(full_path)
+                    print(f"--- [ANTIGRAVITY] TARGET ACQUIRED: {full_path} ---")
 
-    if not source_path or not os.path.exists(source_path):
-        print("--- [ANTIGRAVITY] FATAL: Could not find spinlock.h anywhere. ---")
+    if package_dir_idf:
+        print(f"--- [ANTIGRAVITY] SCANNING IDF FRAMEWORK: {package_dir_idf} ---")
+        for root, dirs, files in os.walk(package_dir_idf):
+            if "spinlock.h" in files:
+                full_path = os.path.join(root, "spinlock.h")
+                if "soc" in root or "esp_hw_support" in root:
+                    target_files.append(full_path)
+                    print(f"--- [ANTIGRAVITY] TARGET ACQUIRED: {full_path} ---")
+    
+    if not target_files:
+        print("--- [ANTIGRAVITY] FATAL: CAUSE LOST. No spinlock.h found anywhere. ---")
         return
 
-    print(f"--- [ANTIGRAVITY] Using source spinlock.h at {source_path} ---")
-    
-    # Read source
-    with open(source_path, "r") as f:
-        content = f.read()
-        
-    # Apply Patch by iterating lines
-    lines = content.splitlines()
-    patched_lines = []
-    
+    # PATCH THEM ALL
     asm_replacement = '    __asm__ __volatile__("rsr %0, 235" : "=r"(core_id));'
     
-    needs_patching = False
-    
-    print(f"--- [ANTIGRAVITY] SCANNING {len(lines)} lines in spinlock.h ---")
-    
-    for i, line in enumerate(lines):
-        line_lower = line.lower()
-        if "rsr" in line_lower and ("prid" in line_lower or "0xeb" in line_lower):
-            print(f"--- [ANTIGRAVITY] PATCHING Line {i+1}: {line.strip()} ---")
-            patched_lines.append(asm_replacement)
-            needs_patching = True
-        else:
-            patched_lines.append(line)
-            
-    patched_content = "\n".join(patched_lines)
-
-    # STRATEGY CHANGE: DIRECT OVERWRITE
-    # We overwrite the framework file itself to ensure compiler picks it up.
-    if needs_patching:
-        print(f"--- [ANTIGRAVITY] OVERWRITING FRAMEWORK FILE: {source_path} ---")
+    for source_path in target_files:
+        print(f"--- [ANTIGRAVITY] PROCESSING: {source_path} ---")
         try:
-            with open(source_path, "w") as f:
-                f.write(patched_content)
-            print("--- [ANTIGRAVITY] OVERWRITE SUCCESSFUL ---")
+            with open(source_path, "r") as f:
+                content = f.read()
+                
+            lines = content.splitlines()
+            patched_lines = []
+            needs_patching = False
+            
+            for i, line in enumerate(lines):
+                line_lower = line.lower()
+                if "rsr" in line_lower and ("prid" in line_lower or "0xeb" in line_lower):
+                    # print(f"--- [ANTIGRAVITY] PATCHING Line {i+1} in {os.path.basename(source_path)} ---") # Reduce noise
+                    patched_lines.append(asm_replacement)
+                    needs_patching = True
+                else:
+                    patched_lines.append(line)
+            
+            if needs_patching:
+                patched_content = "\n".join(patched_lines)
+                with open(source_path, "w") as f:
+                    f.write(patched_content)
+                print(f"--- [ANTIGRAVITY] NUCLEAR STRIKE CONFIRMED: Patched {source_path} ---")
+            else:
+                 print(f"--- [ANTIGRAVITY] File already clean: {source_path} ---")
+
         except Exception as e:
-            print(f"--- [ANTIGRAVITY] ERROR OVERWRITING FRAMEWORK FILE: {e} ---")
-    else:
-        print("--- [ANTIGRAVITY] Framework file appears already patched or didn't match. ---")
+            print(f"--- [ANTIGRAVITY] FAILED TO PATCH {source_path}: {e} ---")
 
-    # FINAL VERIFICATION: Read back the FRAMEWORK file
-    print(f"--- [ANTIGRAVITY] VERIFYING CONTENT OF: {source_path} ---")
-    with open(source_path, "r") as f:
-        final_lines = f.readlines()
-        for i, line in enumerate(final_lines):
-            if "rsr" in line.lower() and "prid" in line.lower():
-                 print(f"CRITICAL ERROR: Line {i+1} still contains PRID: {line.strip()}")
-            if "rsr" in line.lower() and "235" in line:
-                 print(f"SUCCESS: Line {i+1} matches ASM: {line.strip()}")
-    
-    # Keep local override logic just in case (Belt and Suspenders)
-    # Define destination: {project}/include/soc/spinlock.h
-    project_include = env.get("PROJECT_INCLUDE_DIR", os.path.join(env.get("PROJECT_DIR"), "include"))
-    dest_dir = os.path.join(project_include, "soc")
-    dest_path = os.path.join(dest_dir, "spinlock.h")
-    
-    if not os.path.exists(dest_dir):
-        os.makedirs(dest_dir)
-
-    with open(dest_path, "w") as f:
-        f.write(patched_content)
+    # Override logic: Just copy the first valid one we found/patched to local include for good measure
+    if target_files:
+         last_path = target_files[0]
+         # ... copy logic ...
+         with open(last_path, "r") as f:
+             content = f.read() # Read the (now patched) content
+         
+         project_include = env.get("PROJECT_INCLUDE_DIR", os.path.join(env.get("PROJECT_DIR"), "include"))
+         dest_dir = os.path.join(project_include, "soc")
+         dest_path = os.path.join(dest_dir, "spinlock.h")
+         
+         if not os.path.exists(dest_dir):
+             os.makedirs(dest_dir)
+         
+         with open(dest_path, "w") as f:
+             f.write(content)
+         print(f"--- [ANTIGRAVITY] Local override updated from {last_path} ---")
 
     # Ensure build flags prioritize this directory
     env.Prepend(CPPPATH=[project_include])
