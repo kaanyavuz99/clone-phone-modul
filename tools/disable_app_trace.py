@@ -54,16 +54,19 @@ def patch_spinlock_in_dir(package_dir):
                 pattern = r'RSR\s*\(\s*PRID\s*,'
                 
                 if re.search(pattern, content, re.IGNORECASE):
-                    print(f"--- [ANTIGRAVITY] FOUND 'RSR(PRID)' in {spinlock_path}. Patching to 0xEB... ---")
-                    # Force all occurrences
-                    new_content = re.sub(pattern, 'RSR(0xEB,', content, flags=re.IGNORECASE)
+                    print(f"--- [ANTIGRAVITY] FOUND 'RSR(PRID)' in {spinlock_path}. INJECTING TRACER ERROR... ---")
+                    # Replace with a compile-time error to prove we are touching the right file
+                    new_content = re.sub(pattern, '#error "ANTIGRAVITY_TRACER_CONFIRMED"', content, flags=re.IGNORECASE)
                     with open(spinlock_path, "w") as f:
                         f.write(new_content)
-                    print(f"--- [ANTIGRAVITY] SUCCESS: {spinlock_path} patched. ---")
+                    print(f"--- [ANTIGRAVITY] SUCCESS: {spinlock_path} poisoned with tracer. ---")
                 
+                elif 'ANTIGRAVITY_TRACER' in content:
+                    print(f"--- [ANTIGRAVITY] ALREADY POISONED: {spinlock_path} ---")
+
                 # Double check verification for logging
-                if "RSR(0xEB," in content:
-                     print(f"--- [ANTIGRAVITY] INFO: {spinlock_path} contains patched RSR(0xEB). ---")
+                if 'ANTIGRAVITY_TRACER' in content:
+                     print(f"--- [ANTIGRAVITY] INFO: {spinlock_path} contains TRACER error. ---")
 
             except Exception as e:
                 print(f"--- [ANTIGRAVITY] EXCEPTION processing {spinlock_path}: {e} ---")
