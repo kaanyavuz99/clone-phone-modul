@@ -95,10 +95,15 @@ def copy_and_patch_spinlock(env):
                 for line in lines:
                     line_lower_val = line.lower()
                     if "rsr" in line_lower_val and ("prid" in line_lower_val or "0xeb" in line_lower_val):
+                        print(f"--- [ANTIGRAVITY] MATCH FOUND! Patching line: {line.strip()} ---")
                         patched_lines.append(asm_replacement)
                     else:
+                        # Optional: Print lines that look suspicious but failed match?
+                        if "rsr" in line_lower_val:
+                             print(f"--- [ANTIGRAVITY] IGNORED (No PRID/0xEB): {line.strip()} ---")
                         patched_lines.append(line)
                 local_source_content = "\n".join(patched_lines)
+                print("--- [ANTIGRAVITY] Local Source Content Generated (Size: %d bytes) ---" % len(local_source_content))
 
             # NOW RENAME IT - BUT ONLY IF IT IS THE ORIGINAL
             # If it already ends in .bak or .bak.bak, leave it alone!
