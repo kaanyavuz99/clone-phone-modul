@@ -45,27 +45,39 @@ def copy_and_patch_spinlock(env):
     platform = env.PioPlatform()
     
     # Locate source file
-    package_dir = platform.get_package_dir("framework-espidf")
-    if not package_dir:
-        print("--- [ANTIGRAVITY] ERROR: framework-espidf not found! ---")
-        return
-
-    # Typical path: components/esp_hw_support/include/soc/spinlock.h
-    source_path = os.path.join(package_dir, "components", "esp_hw_support", "include", "soc", "spinlock.h")
+    package_dir_idf = platform.get_package_dir("framework-espidf")
+    package_dir_arduino = platform.get_package_dir("framework-arduinoespressif32")
     
-    if not os.path.exists(source_path):
-         print(f"--- [ANTIGRAVITY] ERROR: Source spinlock.h not found at {source_path} ---")
-         # Fallback search
-         for root, dirs, files in os.walk(package_dir):
+    source_path = None
+    
+    # Priority: Check Arduino first as it might be the rogue one
+    if package_dir_arduino:
+         print(f"--- [ANTIGRAVITY] Checking Arduino Framework at {package_dir_arduino} ---")
+         for root, dirs, files in os.walk(package_dir_arduino):
             if "spinlock.h" in files and "soc" in root:
                 source_path = os.path.join(root, "spinlock.h")
+                print(f"--- [ANTIGRAVITY] Found ARDUINO spinlock.h at {source_path} ---")
                 break
-    
-    if not os.path.exists(source_path):
+                
+    if not source_path and package_dir_idf:
+        # Fallback to IDF
+        source_path = os.path.join(package_dir_idf, "components", "esp_hw_support", "include", "soc", "spinlock.h")
+        if not os.path.exists(source_path):
+             for root, dirs, files in os.walk(package_dir_idf):
+                if "spinlock.h" in files and "soc" in root:
+                    source_path = os.path.join(root, "spinlock.h")
+                    break
+
+    if not source_path or not os.path.exists(source_path):
         print("--- [ANTIGRAVITY] FATAL: Could not find spinlock.h anywhere. ---")
         return
 
-    print(f"--- [ANTIGRAVITY] Found source spinlock.h at {source_path} ---")
+    print(f"--- [ANTIGRAVITY] Using source spinlock.h at {source_path} ---")
+    
+    # Debug CPPPATH
+    print("--- [ANTIGRAVITY] Current CPPPATH: ---")
+    for p in env.get("CPPPATH", []):
+        print(f"  - {p}")
 
     # Define destination: {project}/include/soc/spinlock.h
     project_include = env.get("PROJECT_INCLUDE_DIR", os.path.join(env.get("PROJECT_DIR"), "include"))
