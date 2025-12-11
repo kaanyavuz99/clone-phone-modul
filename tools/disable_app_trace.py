@@ -66,6 +66,12 @@ def copy_and_patch_spinlock(env):
                  if "soc" in root or "esp_hw_support" in root:
                      target_files.append(full_path)
                      print(f"--- [ANTIGRAVITY] FOUND BACKUP: {full_path} ---")
+            # FALLBACK LEVEL 2: Recover from recursive rename mess
+            elif "spinlock.h.bak.bak" in files:
+                 full_path = os.path.join(root, "spinlock.h.bak.bak")
+                 if "soc" in root or "esp_hw_support" in root:
+                     target_files.append(full_path)
+                     print(f"--- [ANTIGRAVITY] FOUND DEEP BACKUP: {full_path} ---")
 
     if not target_files:
         print("--- [ANTIGRAVITY] FATAL: No spinlock.h found anywhere. ---")
@@ -73,6 +79,7 @@ def copy_and_patch_spinlock(env):
 
     # Rename Strategy: Move them out of the way!
     asm_replacement = '    __asm__ __volatile__("rsr %0, 235" : "=r"(core_id));'
+    
     local_source_content = ""
 
     for source_path in target_files:
@@ -92,16 +99,18 @@ def copy_and_patch_spinlock(env):
                         patched_lines.append(line)
                 local_source_content = "\n".join(patched_lines)
 
-            # NOW RENAME IT
-            backup_path = source_path + ".bak"
-            if os.path.exists(source_path):
-                print(f"--- [ANTIGRAVITY] RENAMING (Hiding): {source_path} -> {backup_path} ---")
-                os.rename(source_path, backup_path)
+            # NOW RENAME IT - BUT ONLY IF IT IS THE ORIGINAL
+            # If it already ends in .bak or .bak.bak, leave it alone!
+            if not source_path.endswith(".bak") and not source_path.endswith(".bak.bak"):
+                backup_path = source_path + ".bak"
+                if os.path.exists(source_path):
+                    print(f"--- [ANTIGRAVITY] RENAMING (Hiding): {source_path} -> {backup_path} ---")
+                    os.rename(source_path, backup_path)
             else:
-                 print(f"--- [ANTIGRAVITY] File already gone: {source_path} ---")
+                 print(f"--- [ANTIGRAVITY] Backup file preserved: {source_path} ---")
 
         except Exception as e:
-            print(f"--- [ANTIGRAVITY] FAILED TO RENAME {source_path}: {e} ---")
+            print(f"--- [ANTIGRAVITY] FAILED TO RENAME source_path: {e} ---")
 
     # Local Override Creation
     project_include = env.get("PROJECT_INCLUDE_DIR", os.path.join(env.get("PROJECT_DIR"), "include"))
@@ -115,7 +124,7 @@ def copy_and_patch_spinlock(env):
         with open(dest_path, "w") as f:
             f.write(local_source_content)
         print(f"--- [ANTIGRAVITY] Local override created at {dest_path} ---")
-        
+     
     # Ensure build flags prioritize this directory
     env.Prepend(CPPPATH=[project_include])
     print(f"--- [ANTIGRAVITY] Prepended {project_include} to CPPPATH ---")
