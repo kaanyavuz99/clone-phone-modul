@@ -103,7 +103,15 @@ def copy_and_patch_spinlock(env):
                              print(f"--- [ANTIGRAVITY] IGNORED (No PRID/0xEB): {line.strip()} ---")
                         patched_lines.append(line)
                 local_source_content = "\n".join(patched_lines)
+                print(f"--- [ANTIGRAVITY] Local Source Content Generated from: {source_path} ---")
                 print("--- [ANTIGRAVITY] Local Source Content Generated (Size: %d bytes) ---" % len(local_source_content))
+                
+                # Verify content immediately
+                print("--- [ANTIGRAVITY] VERIFICATION DUMP (Lines 80-90) ---")
+                verification_lines = local_source_content.splitlines()[80:91]
+                for v_line in verification_lines:
+                    print(f"[VERIFY] {v_line}")
+                print("--- [ANTIGRAVITY] END VERIFICATION DUMP ---")
 
             # NOW RENAME IT - BUT ONLY IF IT IS THE ORIGINAL
             # If it already ends in .bak or .bak.bak, leave it alone!
