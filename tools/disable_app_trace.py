@@ -79,14 +79,25 @@ def copy_and_patch_spinlock(env):
     with open(source_path, "r") as f:
         content = f.read()
         
-    # Apply ASM Patch
-    asm_replacement = '__asm__ __volatile__("rsr %0, 235" : "=r"(core_id));'
+    # Apply Patch by iterating lines to avoid regex pitfalls
+    lines = content.splitlines()
+    patched_lines = []
     
-    patched_content = content
-    # Replace RSR(PRID, ...)
-    patched_content = re.sub(r'RSR\s*\(\s*PRID\s*,\s*core_id\s*\)\s*;', asm_replacement, patched_content, flags=re.IGNORECASE)
-    # Replace RSR(0xEB, ...) just in case
-    patched_content = re.sub(r'RSR\s*\(\s*0xEB\s*,\s*core_id\s*\)\s*;', asm_replacement, patched_content, flags=re.IGNORECASE)
+    asm_replacement = '    __asm__ __volatile__("rsr %0, 235" : "=r"(core_id));'
+    
+    for i, line in enumerate(lines):
+        # Check for target lines (usually 83 and 157) or content matches
+        # Original: RSR(PRID, core_id);
+        if "RSR" in line and "PRID" in line:
+            print(f"--- [ANTIGRAVITY] Patching Line {i+1}: {line.strip()} ---")
+            patched_lines.append(asm_replacement)
+        elif "RSR" in line and "0xEB" in line:
+             print(f"--- [ANTIGRAVITY] Patching Line {i+1} (0xEB): {line.strip()} ---")
+             patched_lines.append(asm_replacement)
+        else:
+            patched_lines.append(line)
+            
+    patched_content = "\n".join(patched_lines)
     
     # Write to local include
     with open(dest_path, "w") as f:
