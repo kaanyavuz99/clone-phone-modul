@@ -103,7 +103,7 @@ def patch_spinlock_in_dir(package_dir):
                     else:
                          print(f"--- [ANTIGRAVITY] ERROR: WRITE FAILED TO PERSIST! ---")
 
-                elif asm_replacement in content:
+                if asm_replacement in content:
                      print(f"--- [ANTIGRAVITY] ALREADY PATCHED (Verified ASM): {spinlock_path} ---") 
                 else:
                      print(f"--- [ANTIGRAVITY] NO MATCH FOUND in {spinlock_path} ---")
@@ -111,14 +111,93 @@ def patch_spinlock_in_dir(package_dir):
             except Exception as e:
                 print(f"--- [ANTIGRAVITY] EXCEPTION processing {spinlock_path}: {e} ---")
 
+def deep_clean_frameworks(env):
+    """
+    NUCLEAR OPTION: Delete the framework directories to force re-download.
+    Run this ONLY if a specific flag file triggers it.
+    """
+    import shutil
+    
+    # Check if we should clean (Hook for User Request)
+    TRIGGER_FILE = "trigger_deep_clean.txt"
+    MARKER_FILE = "deep_clean_done.txt"
+    
+    # We implicitly want to clean if the user asked, but let's automate it for this cycle.
+    # If we haven't cleaned yet (marker missing), DO IT.
+    
+    if os.path.exists(MARKER_FILE):
+        print("--- [ANTIGRAVITY] Deep clean marker found. Skipping deletion. ---")
+        return
+
+    print("--- [ANTIGRAVITY] INITIATING DEEP CLEAN OF FRAMEWORKS... ---")
+    
+    # Try to find package dir
+    # Usually ~/.platformio/packages
+    home = os.path.expanduser("~")
+    pio_packages = os.path.join(home, ".platformio", "packages")
+    
+    if not os.path.exists(pio_packages):
+        print(f"--- [ANTIGRAVITY] WARNING: Could not find {pio_packages} ---")
+        return
+
+    targets = [
+        "framework-espidf",
+        "framework-arduinoespressif32"
+    ]
+    
+    cleaning_performed = False
+    
+    for item in os.listdir(pio_packages):
+        for t in targets:
+            if item.startswith(t):
+                full_path = os.path.join(pio_packages, item)
+                print(f"--- [ANTIGRAVITY] DELETING PACKAGE: {full_path} ---")
+                try:
+                    if os.path.isdir(full_path):
+                        shutil.rmtree(full_path)
+                    else:
+                        os.remove(full_path)
+                    cleaning_performed = True
+                except Exception as e:
+                    print(f"--- [ANTIGRAVITY] ERROR DELETING {item}: {e} ---")
+
+    # Also clean local build artifacts
+    if os.path.exists(".pio/build"):
+        print("--- [ANTIGRAVITY] CLEANING .pio/build ---")
+        shutil.rmtree(".pio/build", ignore_errors=True)
+
+    if cleaning_performed:
+        # Create marker
+        with open(MARKER_FILE, "w") as f:
+            f.write("cleaned")
+        
+        print("\n\n")
+        print("!"*80)
+        print("--- [ANTIGRAVITY] FRAMEWORKS DELETED. PLEASE RE-RUN THE BUILD ! ---")
+        print("--- [ANTIGRAVITY] This error is INTENTIONAL to stop the build. ---")
+        print("!"*80)
+        print("\n\n")
+        # Exit to stop build and force re-download on next run
+        sys.exit(1)
+    else:
+        # If nothing found, just mark as done so we don't loop
+        with open(MARKER_FILE, "w") as f:
+             f.write("skipped")
+
 def patch_spinlock(env):
     platform = env.PioPlatform()
     
-    # Patch in framework-espidf
-    patch_spinlock_in_dir(platform.get_package_dir("framework-espidf"))
+    # Run Deep Clean First
+    deep_clean_frameworks(env)
     
-    # Patch in framework-arduinoespressif32
-    patch_spinlock_in_dir(platform.get_package_dir("framework-arduinoespressif32"))
+    # 2. Patch spinlock.h in all framework directories
+    framework_dirs = [
+        os.path.join(env['PROJECT_PACKAGES_DIR'], d) for d in os.listdir(env['PROJECT_PACKAGES_DIR'])
+        if d.startswith('framework-espidf') or d.startswith('framework-arduinoespressif32')
+    ]
+    
+    for d in framework_dirs:
+        patch_spinlock_in_dir(d)
 
 disable_component(env, "app_trace")
 disable_component(env, "esp_gdbstub")
