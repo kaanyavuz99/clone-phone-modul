@@ -1,5 +1,7 @@
 import os
 from SCons.Script import Import
+import re
+import sys
 
 Import("env")
 
