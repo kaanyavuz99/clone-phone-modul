@@ -83,11 +83,55 @@ def copy_and_patch_spinlock(env):
 
     print(f"--- [ANTIGRAVITY] Using source spinlock.h at {source_path} ---")
     
-    # Debug CPPPATH
-    print("--- [ANTIGRAVITY] Current CPPPATH: ---")
-    for p in env.get("CPPPATH", []):
-        print(f"  - {p}")
+    # Read source
+    with open(source_path, "r") as f:
+        content = f.read()
+        
+    # Apply Patch by iterating lines
+    lines = content.splitlines()
+    patched_lines = []
+    
+    asm_replacement = '    __asm__ __volatile__("rsr %0, 235" : "=r"(core_id));'
+    
+    needs_patching = False
+    
+    print(f"--- [ANTIGRAVITY] SCANNING {len(lines)} lines in spinlock.h ---")
+    
+    for i, line in enumerate(lines):
+        line_lower = line.lower()
+        if "rsr" in line_lower and ("prid" in line_lower or "0xeb" in line_lower):
+            print(f"--- [ANTIGRAVITY] PATCHING Line {i+1}: {line.strip()} ---")
+            patched_lines.append(asm_replacement)
+            needs_patching = True
+        else:
+            patched_lines.append(line)
+            
+    patched_content = "\n".join(patched_lines)
 
+    # STRATEGY CHANGE: DIRECT OVERWRITE
+    # We overwrite the framework file itself to ensure compiler picks it up.
+    if needs_patching:
+        print(f"--- [ANTIGRAVITY] OVERWRITING FRAMEWORK FILE: {source_path} ---")
+        try:
+            with open(source_path, "w") as f:
+                f.write(patched_content)
+            print("--- [ANTIGRAVITY] OVERWRITE SUCCESSFUL ---")
+        except Exception as e:
+            print(f"--- [ANTIGRAVITY] ERROR OVERWRITING FRAMEWORK FILE: {e} ---")
+    else:
+        print("--- [ANTIGRAVITY] Framework file appears already patched or didn't match. ---")
+
+    # FINAL VERIFICATION: Read back the FRAMEWORK file
+    print(f"--- [ANTIGRAVITY] VERIFYING CONTENT OF: {source_path} ---")
+    with open(source_path, "r") as f:
+        final_lines = f.readlines()
+        for i, line in enumerate(final_lines):
+            if "rsr" in line.lower() and "prid" in line.lower():
+                 print(f"CRITICAL ERROR: Line {i+1} still contains PRID: {line.strip()}")
+            if "rsr" in line.lower() and "235" in line:
+                 print(f"SUCCESS: Line {i+1} matches ASM: {line.strip()}")
+    
+    # Keep local override logic just in case (Belt and Suspenders)
     # Define destination: {project}/include/soc/spinlock.h
     project_include = env.get("PROJECT_INCLUDE_DIR", os.path.join(env.get("PROJECT_DIR"), "include"))
     dest_dir = os.path.join(project_include, "soc")
@@ -95,56 +139,13 @@ def copy_and_patch_spinlock(env):
     
     if not os.path.exists(dest_dir):
         os.makedirs(dest_dir)
-        
-    # Read source
-    with open(source_path, "r") as f:
-        content = f.read()
-        
-    # Apply Patch by iterating lines to avoid regex pitfalls
-    lines = content.splitlines()
-    patched_lines = []
-    
-    # TRACER REMOVED
-    # patched_lines.append('#error "ANTIGRAVITY_ACCESS_CONFIRMED: I CAN WRITE THIS FILE"')
-    
-    asm_replacement = '    __asm__ __volatile__("rsr %0, 235" : "=r"(core_id));'
-    
-    print(f"--- [ANTIGRAVITY] SCANNING {len(lines)} lines in spinlock.h ---")
-    
-    for i, line in enumerate(lines):
-        # Case insensitive check
-        line_lower = line.lower()
-        if "rsr" in line_lower and ("prid" in line_lower or "0xeb" in line_lower):
-            print(f"--- [ANTIGRAVITY] PATCHING Line {i+1}: {line.strip()} ---")
-            patched_lines.append(asm_replacement)
-        else:
-            # Debug: Print potential misses
-            if "rsr" in line_lower or "prid" in line_lower:
-                 print(f"--- [ANTIGRAVITY] SKIPPING Line {i+1} (No match): {line.strip()} ---")
-            patched_lines.append(line)
-            
-    patched_content = "\n".join(patched_lines)
-    
-    # Write to local include
+
     with open(dest_path, "w") as f:
         f.write(patched_content)
-        
-    print(f"--- [ANTIGRAVITY] CREATED LOCAL OVERRIDE: {dest_path} ---")
-    
+
     # Ensure build flags prioritize this directory
-    # CRITICAL: Use Prepend to force this directory to be searched BEFORE frameowrk includes
     env.Prepend(CPPPATH=[project_include])
     print(f"--- [ANTIGRAVITY] Prepended {project_include} to CPPPATH (Priority Override) ---")
-    
-    # FINAL VERIFICATION: Read back what we wrote
-    print(f"--- [ANTIGRAVITY] VERIFYING CONTENT OF: {dest_path} ---")
-    with open(dest_path, "r") as f:
-        final_lines = f.readlines()
-        for i, line in enumerate(final_lines):
-            if "rsr" in line.lower() and "prid" in line.lower():
-                 print(f"CRITICAL ERROR: Line {i+1} still contains PRID: {line.strip()}")
-            if "rsr" in line.lower() and "235" in line:
-                 print(f"SUCCESS: Line {i+1} matches ASM: {line.strip()}")
 
 disable_component(env, "app_trace")
 disable_component(env, "esp_gdbstub")
