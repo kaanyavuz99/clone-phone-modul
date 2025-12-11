@@ -48,17 +48,26 @@ def patch_spinlock(env):
             with open(spinlock_path, "r") as f:
                 content = f.read()
             
-            # Patch: Replace rsr.PRID with rsr.prid (lowercase attempt)
+            # Debug: Print lines 80-90 to see exactly what is there
+            lines = content.splitlines()
+            print("--- [ANTIGRAVITY] DEBUG: spinlock.h content around line 83: ---")
+            for i in range(max(0, 75), min(len(lines), 90)):
+                 print(f"{i+1}: {lines[i]}")
+            
+            # Patch attempts with regex to be safer?
+            # Let's try to match case-insensitive or partial
             if "rsr.PRID" in content:
-                print(f"--- [ANTIGRAVITY] PATCHING 'rsr.PRID' to 'rsr.prid' in spinlock.h... ---")
+                print(f"--- [ANTIGRAVITY] PATCHING 'rsr.PRID' to 'rsr.prid'... ---")
                 new_content = content.replace("rsr.PRID", "rsr.prid")
                 with open(spinlock_path, "w") as f:
                     f.write(new_content)
-                print(f"--- [ANTIGRAVITY] SUCCESS: spinlock.h patched. ---")
-            elif "rsr.prid" in content:
-                 print(f"--- [ANTIGRAVITY] spinlock.h ALREADY PATCHED (lowercase). ---")
+            elif "RSR.PRID" in content:
+                print(f"--- [ANTIGRAVITY] PATCHING 'RSR.PRID' to 'rsr.prid'... ---")
+                new_content = content.replace("RSR.PRID", "rsr.prid")
+                with open(spinlock_path, "w") as f:
+                    f.write(new_content)
             else:
-                 print(f"--- [ANTIGRAVITY] WARNING: 'rsr.PRID' not found in spinlock.h. ---")
+                 print(f"--- [ANTIGRAVITY] WARNING: Exact 'rsr.PRID' string not found. See debug output above. ---")
 
     except Exception as e:
         print(f"--- [ANTIGRAVITY] EXCEPTION: {e} ---")
