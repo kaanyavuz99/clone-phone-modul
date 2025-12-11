@@ -58,10 +58,14 @@ def copy_and_patch_spinlock(env):
          for root, dirs, files in os.walk(packages_dir):
             if "spinlock.h" in files:
                 full_path = os.path.join(root, "spinlock.h")
-                # Heuristic: verify it's the soc component
                 if "soc" in root or "esp_hw_support" in root:
                      target_files.append(full_path)
-                     print(f"--- [ANTIGRAVITY] FOUND: {full_path} ---")
+            # FALLBACK: Search for backups if we are in "Already Renamed" state
+            elif "spinlock.h.bak" in files:
+                 full_path = os.path.join(root, "spinlock.h.bak")
+                 if "soc" in root or "esp_hw_support" in root:
+                     target_files.append(full_path)
+                     print(f"--- [ANTIGRAVITY] FOUND BACKUP: {full_path} ---")
 
     if not target_files:
         print("--- [ANTIGRAVITY] FATAL: No spinlock.h found anywhere. ---")
