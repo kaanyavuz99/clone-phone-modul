@@ -48,11 +48,12 @@ def patch_spinlock(env):
             with open(spinlock_path, "r") as f:
                 content = f.read()
             
-            # Patch: Replace RSR(PRID, ...) with RSR(prid, ...)
-            # The macro usage is what generates the assembly opcode
+            # Patch: Replace RSR(PRID, ...) with RSR(0xEB, ...)
+            # PRID register index is 0xEB (235) on ESP32 Xtensa LX6
+            # This bypasses the assemblers issue with the symbolic name 'PRID'
             if "RSR(PRID," in content:
-                print(f"--- [ANTIGRAVITY] PATCHING 'RSR(PRID,' to 'RSR(prid,' in spinlock.h... ---")
-                new_content = content.replace("RSR(PRID,", "RSR(prid,")
+                print(f"--- [ANTIGRAVITY] PATCHING 'RSR(PRID,' to 'RSR(0xEB,' in spinlock.h... ---")
+                new_content = content.replace("RSR(PRID,", "RSR(0xEB,")
                 with open(spinlock_path, "w") as f:
                     f.write(new_content)
                 print(f"--- [ANTIGRAVITY] SUCCESS: spinlock.h patched. ---")
