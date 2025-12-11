@@ -46,41 +46,33 @@ def copy_and_patch_spinlock(env):
     
     # Locate source file
     # Locate source file
-    package_dir_idf = platform.get_package_dir("framework-espidf")
-    package_dir_arduino = platform.get_package_dir("framework-arduinoespressif32")
+    # We will search the entire packages directory to be sure
+    packages_dir = platform.get_package_dir("framework-espidf")
+    if packages_dir:
+        packages_dir = os.path.dirname(packages_dir) # Go up to .platformio/packages
     
     target_files = []
     
-    # SEARCH EVERYWHERE. NUCLEAR OPTION.
-    
-    if package_dir_arduino:
-         print(f"--- [ANTIGRAVITY] SCANNING ARDUINO FRAMEWORK: {package_dir_arduino} ---")
-         for root, dirs, files in os.walk(package_dir_arduino):
+    if packages_dir:
+         print(f"--- [ANTIGRAVITY] DEEP SCANNING PACKAGES DIR: {packages_dir} ---")
+         for root, dirs, files in os.walk(packages_dir):
             if "spinlock.h" in files:
                 full_path = os.path.join(root, "spinlock.h")
-                # Filter for useful paths to avoid patching unrelated stuff if any
+                # Heuristic: verify it's the soc component
                 if "soc" in root or "esp_hw_support" in root:
-                    target_files.append(full_path)
-                    print(f"--- [ANTIGRAVITY] TARGET ACQUIRED: {full_path} ---")
+                     target_files.append(full_path)
+                     print(f"--- [ANTIGRAVITY] FOUND: {full_path} ---")
 
-    if package_dir_idf:
-        print(f"--- [ANTIGRAVITY] SCANNING IDF FRAMEWORK: {package_dir_idf} ---")
-        for root, dirs, files in os.walk(package_dir_idf):
-            if "spinlock.h" in files:
-                full_path = os.path.join(root, "spinlock.h")
-                if "soc" in root or "esp_hw_support" in root:
-                    target_files.append(full_path)
-                    print(f"--- [ANTIGRAVITY] TARGET ACQUIRED: {full_path} ---")
-    
     if not target_files:
-        print("--- [ANTIGRAVITY] FATAL: CAUSE LOST. No spinlock.h found anywhere. ---")
+        print("--- [ANTIGRAVITY] FATAL: No spinlock.h found anywhere. ---")
         return
 
     # PATCH THEM ALL
     asm_replacement = '    __asm__ __volatile__("rsr %0, 235" : "=r"(core_id));'
     
+    local_source_content = ""
+
     for source_path in target_files:
-        print(f"--- [ANTIGRAVITY] PROCESSING: {source_path} ---")
         try:
             with open(source_path, "r") as f:
                 content = f.read()
@@ -91,45 +83,56 @@ def copy_and_patch_spinlock(env):
             
             for i, line in enumerate(lines):
                 line_lower = line.lower()
+                # Check for BAD patterns
                 if "rsr" in line_lower and ("prid" in line_lower or "0xeb" in line_lower):
-                    # print(f"--- [ANTIGRAVITY] PATCHING Line {i+1} in {os.path.basename(source_path)} ---") # Reduce noise
                     patched_lines.append(asm_replacement)
                     needs_patching = True
                 else:
                     patched_lines.append(line)
             
             if needs_patching:
+                print(f"--- [ANTIGRAVITY] PATCHING DIRTY FILE: {source_path} ---")
                 patched_content = "\n".join(patched_lines)
                 with open(source_path, "w") as f:
                     f.write(patched_content)
-                print(f"--- [ANTIGRAVITY] NUCLEAR STRIKE CONFIRMED: Patched {source_path} ---")
             else:
-                 print(f"--- [ANTIGRAVITY] File already clean: {source_path} ---")
+                 # It's clean (or we think so). Let's save one for local override
+                 pass
+
+            # Update content for local override from the last processed file (which is now clean/patched)
+            if needs_patching:
+                local_source_content = patched_content
+            elif not local_source_content:
+                local_source_content = content
 
         except Exception as e:
             print(f"--- [ANTIGRAVITY] FAILED TO PATCH {source_path}: {e} ---")
 
-    # Override logic: Just copy the first valid one we found/patched to local include for good measure
-    if target_files:
-         last_path = target_files[0]
-         # ... copy logic ...
-         with open(last_path, "r") as f:
-             content = f.read() # Read the (now patched) content
-         
-         project_include = env.get("PROJECT_INCLUDE_DIR", os.path.join(env.get("PROJECT_DIR"), "include"))
-         dest_dir = os.path.join(project_include, "soc")
-         dest_path = os.path.join(dest_dir, "spinlock.h")
-         
-         if not os.path.exists(dest_dir):
-             os.makedirs(dest_dir)
-         
-         with open(dest_path, "w") as f:
-             f.write(content)
-         print(f"--- [ANTIGRAVITY] Local override updated from {last_path} ---")
+    # Local Override
+    project_include = env.get("PROJECT_INCLUDE_DIR", os.path.join(env.get("PROJECT_DIR"), "include"))
+    dest_dir = os.path.join(project_include, "soc")
+    dest_path = os.path.join(dest_dir, "spinlock.h")
+    
+    if not os.path.exists(dest_dir):
+        os.makedirs(dest_dir)
+
+    if local_source_content:
+        with open(dest_path, "w") as f:
+            f.write(local_source_content)
+        print(f"--- [ANTIGRAVITY] Local override created at {dest_path} ---")
+        
+        # VISUAL INSPECTION
+        print(f"--- [ANTIGRAVITY] INSPECTING {dest_path} LINES 80-90 ---")
+        lines = local_source_content.splitlines()
+        start = max(0, 80)
+        end = min(len(lines), 95)
+        for i in range(start, end):
+            print(f"{i+1}: {lines[i]}")
+        print("--- [ANTIGRAVITY] INSPECTION END ---")
 
     # Ensure build flags prioritize this directory
     env.Prepend(CPPPATH=[project_include])
-    print(f"--- [ANTIGRAVITY] Prepended {project_include} to CPPPATH (Priority Override) ---")
+    print(f"--- [ANTIGRAVITY] Prepended {project_include} to CPPPATH ---")
 
 disable_component(env, "app_trace")
 disable_component(env, "esp_gdbstub")
