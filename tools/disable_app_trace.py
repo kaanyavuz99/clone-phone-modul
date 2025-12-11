@@ -40,9 +40,9 @@ def patch_spinlock_in_dir(package_dir):
     for root, dirs, files in os.walk(package_dir):
         if "spinlock.h" in files:
             spinlock_path = os.path.join(root, "spinlock.h")
-            # Only target the specific soc/spinlock.h file to avoid patching unrelated files
-            if "soc" not in spinlock_path and "include" not in spinlock_path:
-                 continue
+            # ULTRA-AGGRESSIVE: Patch EVERY spinlock.h found, no path validation.
+            # if "soc" not in spinlock_path and "include" not in spinlock_path:
+            #      continue
             
             print(f"--- [ANTIGRAVITY] CHECKING: {spinlock_path} ---")
             
