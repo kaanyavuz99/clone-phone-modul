@@ -67,48 +67,41 @@ def copy_and_patch_spinlock(env):
         print("--- [ANTIGRAVITY] FATAL: No spinlock.h found anywhere. ---")
         return
 
-    # PATCH THEM ALL
+    # Rename Strategy: Move them out of the way!
     asm_replacement = '    __asm__ __volatile__("rsr %0, 235" : "=r"(core_id));'
-    
     local_source_content = ""
 
     for source_path in target_files:
         try:
-            with open(source_path, "r") as f:
-                content = f.read()
-                
-            lines = content.splitlines()
-            patched_lines = []
-            needs_patching = False
-            
-            for i, line in enumerate(lines):
-                line_lower = line.lower()
-                # Check for BAD patterns
-                if "rsr" in line_lower and ("prid" in line_lower or "0xeb" in line_lower):
-                    patched_lines.append(asm_replacement)
-                    needs_patching = True
-                else:
-                    patched_lines.append(line)
-            
-            if needs_patching:
-                print(f"--- [ANTIGRAVITY] PATCHING DIRTY FILE: {source_path} ---")
-                patched_content = "\n".join(patched_lines)
-                with open(source_path, "w") as f:
-                    f.write(patched_content)
-            else:
-                 # It's clean (or we think so). Let's save one for local override
-                 pass
+            # Read content first to save for our local override
+            if not local_source_content:
+                with open(source_path, "r") as f:
+                    content = f.read()
+                    # Patch it in memory for our local file
+                    if "PRID" in content or "0xEB" in content:
+                        lines = content.splitlines()
+                        patched_lines = []
+                        for line in lines:
+                            if "rsr" in line.lower() and ("prid" in line.lower() or "0xeb" in line_lower):
+                                patched_lines.append(asm_replacement)
+                            else:
+                                patched_lines.append(line)
+                        local_source_content = "\n".join(patched_lines)
+                    else:
+                        local_source_content = content
 
-            # Update content for local override from the last processed file (which is now clean/patched)
-            if needs_patching:
-                local_source_content = patched_content
-            elif not local_source_content:
-                local_source_content = content
+            # NOW RENAME IT
+            backup_path = source_path + ".bak"
+            if os.path.exists(source_path):
+                print(f"--- [ANTIGRAVITY] RENAMING (Hiding): {source_path} -> {backup_path} ---")
+                os.rename(source_path, backup_path)
+            else:
+                 print(f"--- [ANTIGRAVITY] File already gone: {source_path} ---")
 
         except Exception as e:
-            print(f"--- [ANTIGRAVITY] FAILED TO PATCH {source_path}: {e} ---")
+            print(f"--- [ANTIGRAVITY] FAILED TO RENAME {source_path}: {e} ---")
 
-    # Local Override
+    # Local Override Creation
     project_include = env.get("PROJECT_INCLUDE_DIR", os.path.join(env.get("PROJECT_DIR"), "include"))
     dest_dir = os.path.join(project_include, "soc")
     dest_path = os.path.join(dest_dir, "spinlock.h")
@@ -121,15 +114,6 @@ def copy_and_patch_spinlock(env):
             f.write(local_source_content)
         print(f"--- [ANTIGRAVITY] Local override created at {dest_path} ---")
         
-        # VISUAL INSPECTION
-        print(f"--- [ANTIGRAVITY] INSPECTING {dest_path} LINES 80-90 ---")
-        lines = local_source_content.splitlines()
-        start = max(0, 80)
-        end = min(len(lines), 95)
-        for i in range(start, end):
-            print(f"{i+1}: {lines[i]}")
-        print("--- [ANTIGRAVITY] INSPECTION END ---")
-
     # Ensure build flags prioritize this directory
     env.Prepend(CPPPATH=[project_include])
     print(f"--- [ANTIGRAVITY] Prepended {project_include} to CPPPATH ---")
