@@ -83,6 +83,9 @@ def copy_and_patch_spinlock(env):
     lines = content.splitlines()
     patched_lines = []
     
+    # TRACER ERROR: Verify we control this file
+    patched_lines.append('#error "ANTIGRAVITY_ACCESS_CONFIRMED: I CAN WRITE THIS FILE"')
+    
     asm_replacement = '    __asm__ __volatile__("rsr %0, 235" : "=r"(core_id));'
     
     print(f"--- [ANTIGRAVITY] SCANNING {len(lines)} lines in spinlock.h ---")
