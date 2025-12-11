@@ -85,16 +85,18 @@ def copy_and_patch_spinlock(env):
     
     asm_replacement = '    __asm__ __volatile__("rsr %0, 235" : "=r"(core_id));'
     
+    print(f"--- [ANTIGRAVITY] SCANNING {len(lines)} lines in spinlock.h ---")
+    
     for i, line in enumerate(lines):
-        # Check for target lines (usually 83 and 157) or content matches
-        # Original: RSR(PRID, core_id);
-        if "RSR" in line and "PRID" in line:
-            print(f"--- [ANTIGRAVITY] Patching Line {i+1}: {line.strip()} ---")
+        # Case insensitive check
+        line_lower = line.lower()
+        if "rsr" in line_lower and ("prid" in line_lower or "0xeb" in line_lower):
+            print(f"--- [ANTIGRAVITY] PATCHING Line {i+1}: {line.strip()} ---")
             patched_lines.append(asm_replacement)
-        elif "RSR" in line and "0xEB" in line:
-             print(f"--- [ANTIGRAVITY] Patching Line {i+1} (0xEB): {line.strip()} ---")
-             patched_lines.append(asm_replacement)
         else:
+            # Debug: Print potential misses
+            if "rsr" in line_lower or "prid" in line_lower:
+                 print(f"--- [ANTIGRAVITY] SKIPPING Line {i+1} (No match): {line.strip()} ---")
             patched_lines.append(line)
             
     patched_content = "\n".join(patched_lines)
