@@ -93,7 +93,8 @@ def copy_and_patch_spinlock(env):
                 lines = content.splitlines()
                 patched_lines = []
                 for line in lines:
-                    if "rsr" in line.lower() and ("prid" in line.lower() or "0xeb" in line_lower):
+                    line_lower_val = line.lower()
+                    if "rsr" in line_lower_val and ("prid" in line_lower_val or "0xeb" in line_lower_val):
                         patched_lines.append(asm_replacement)
                     else:
                         patched_lines.append(line)
