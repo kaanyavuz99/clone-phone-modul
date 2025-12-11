@@ -81,18 +81,16 @@ def copy_and_patch_spinlock(env):
             if not local_source_content:
                 with open(source_path, "r") as f:
                     content = f.read()
-                    # Patch it in memory for our local file
-                    if "PRID" in content or "0xEB" in content:
-                        lines = content.splitlines()
-                        patched_lines = []
-                        for line in lines:
-                            if "rsr" in line.lower() and ("prid" in line.lower() or "0xeb" in line_lower):
-                                patched_lines.append(asm_replacement)
-                            else:
-                                patched_lines.append(line)
-                        local_source_content = "\n".join(patched_lines)
+                    
+                # ALWAYS process line-by-line to ensure we catch it
+                lines = content.splitlines()
+                patched_lines = []
+                for line in lines:
+                    if "rsr" in line.lower() and ("prid" in line.lower() or "0xeb" in line_lower):
+                        patched_lines.append(asm_replacement)
                     else:
-                        local_source_content = content
+                        patched_lines.append(line)
+                local_source_content = "\n".join(patched_lines)
 
             # NOW RENAME IT
             backup_path = source_path + ".bak"
