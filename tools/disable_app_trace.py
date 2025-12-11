@@ -102,6 +102,10 @@ def copy_and_patch_spinlock(env):
                         if "rsr" in line_lower_val:
                              print(f"--- [ANTIGRAVITY] IGNORED (No PRID/0xEB): {line.strip()} ---")
                         patched_lines.append(line)
+                
+                # PREPEND LINE SHIFT TEST
+                patched_lines.insert(0, "// [ANTIGRAVITY] LINE SHIFT TEST - ERROR SHOULD BE AT LINE 84")
+                
                 local_source_content = "\n".join(patched_lines)
                 print(f"--- [ANTIGRAVITY] Local Source Content Generated from: {source_path} ---")
                 print("--- [ANTIGRAVITY] Local Source Content Generated (Size: %d bytes) ---" % len(local_source_content))
