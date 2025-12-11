@@ -53,41 +53,52 @@ def patch_spinlock_in_dir(package_dir):
                 import re
                 pattern = r'RSR\s*\(\s*PRID\s*,'
                 
-                # DEBUG: Print file content to understand the Macro definition
-                lines = content.splitlines()
-                print(f"--- [ANTIGRAVITY] FILE HEAD ({spinlock_path}): ---")
-                for i in range(min(50, len(lines))):
-                     print(f"{i+1}: {lines[i]}")
-                
-                print(f"--- [ANTIGRAVITY] CONTEXT AROUND LINE 83: ---")
-                if len(lines) > 85:
-                    for i in range(80, 86):
-                        print(f"{i+1}: {lines[i]}")
-                
-                # Define the detailed ASM replacement
-                asm_replacement = '__asm__ __volatile__("rsr %0, 235" : "=r"(core_id));'
-                
-                # Check for original RSR(PRID...)
-                if re.search(pattern, content, re.IGNORECASE):
-                    print(f"--- [ANTIGRAVITY] FOUND 'RSR(PRID)' in {spinlock_path}. Patching to ASM... ---")
-                    new_content = re.sub(r'RSR\s*\(\s*PRID\s*,\s*core_id\s*\)\s*;', asm_replacement, content, flags=re.IGNORECASE)
-                    with open(spinlock_path, "w") as f:
-                        f.write(new_content)
-                    print(f"--- [ANTIGRAVITY] SUCCESS: {spinlock_path} patched with ASM (from PRID). ---")
-                    # Update content for next check
-                    content = new_content
+                # FORCE CLEAN BUILD once to clear artifacts
+                # if not os.path.exists("flag_clean_done"):
+                #    print("--- [ANTIGRAVITY] FORCING CLEAN BUILD... ---")
+                #    env.Execute("rm -rf .pio/build")
+                #    with open("flag_clean_done", "w") as f: f.write("done")
 
-                # Check for previously failed patch RSR(0xEB...)
-                pattern_0xeb = r'RSR\s*\(\s*0xEB\s*,\s*core_id\s*\)\s*;'
-                if re.search(pattern_0xeb, content, re.IGNORECASE):
-                    print(f"--- [ANTIGRAVITY] FOUND 'RSR(0xEB)' in {spinlock_path}. upgrading to ASM... ---")
-                    new_content = re.sub(pattern_0xeb, asm_replacement, content, flags=re.IGNORECASE)
+                # Prepare the correct content
+                # 1. Replace RSR(PRID...)
+                # 2. Replace RSR(0xEB...)
+                # 3. Use ASM
+                
+                asm_replacement = '__asm__ __volatile__("rsr %0, 235" : "=r"(core_id));'
+                new_content = content
+                
+                if re.search(r'RSR\s*\(\s*PRID\s*,\s*core_id\s*\)\s*;', new_content, re.IGNORECASE):
+                     new_content = re.sub(r'RSR\s*\(\s*PRID\s*,\s*core_id\s*\)\s*;', asm_replacement, new_content, flags=re.IGNORECASE)
+                
+                if re.search(r'RSR\s*\(\s*0xEB\s*,\s*core_id\s*\)\s*;', new_content, re.IGNORECASE):
+                     new_content = re.sub(r'RSR\s*\(\s*0xEB\s*,\s*core_id\s*\)\s*;', asm_replacement, new_content, flags=re.IGNORECASE)
+                
+                if new_content != content:
+                    print(f"--- [ANTIGRAVITY] PATCHING {spinlock_path} (Atomir Rewrite)... ---")
+                    
+                    # ATOMIC REWRITE: Delete then Write to break caching/links
+                    try:
+                        os.remove(spinlock_path)
+                        print(f"--- [ANTIGRAVITY] DELETED original file. ---")
+                    except Exception as ex:
+                        print(f"--- [ANTIGRAVITY] WARNING: Could not delete file: {ex} ---")
+
                     with open(spinlock_path, "w") as f:
                         f.write(new_content)
-                    print(f"--- [ANTIGRAVITY] SUCCESS: {spinlock_path} patched with ASM (from 0xEB). ---")
-                
-                if 'rsr %0, 235' in content:
-                     print(f"--- [ANTIGRAVITY] ALREADY PATCHED WITH ASM: {spinlock_path} ---")
+                    print(f"--- [ANTIGRAVITY] WROTE new content. ---")
+                    
+                    # Verify
+                    with open(spinlock_path, "r") as f:
+                        check = f.read()
+                    if asm_replacement in check:
+                         print(f"--- [ANTIGRAVITY] VERIFIED: File contains ASM on disk. ---")
+                    else:
+                         print(f"--- [ANTIGRAVITY] ERROR: WRITE FAILED TO PERSIST! ---")
+
+                elif asm_replacement in content:
+                     print(f"--- [ANTIGRAVITY] ALREADY PATCHED (Verified ASM): {spinlock_path} ---") 
+                else:
+                     print(f"--- [ANTIGRAVITY] NO MATCH FOUND in {spinlock_path} ---")
 
             except Exception as e:
                 print(f"--- [ANTIGRAVITY] EXCEPTION processing {spinlock_path}: {e} ---")
