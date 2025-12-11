@@ -53,11 +53,20 @@ def copy_and_patch_spinlock(env):
     # Priority: Check Arduino first as it might be the rogue one
     if package_dir_arduino:
          print(f"--- [ANTIGRAVITY] Checking Arduino Framework at {package_dir_arduino} ---")
-         for root, dirs, files in os.walk(package_dir_arduino):
-            if "spinlock.h" in files and "soc" in root:
-                source_path = os.path.join(root, "spinlock.h")
-                print(f"--- [ANTIGRAVITY] Found ARDUINO spinlock.h at {source_path} ---")
-                break
+         # We specifically want the ESP32 (not s2, s3, c3) version.
+         # Path usually: tools/sdk/esp32/include/esp_hw_support/include/soc/spinlock.h
+         expected_path = os.path.join(package_dir_arduino, "tools", "sdk", "esp32", "include", "esp_hw_support", "include", "soc", "spinlock.h")
+         
+         if os.path.exists(expected_path):
+             source_path = expected_path
+             print(f"--- [ANTIGRAVITY] Found CORRECT ARDUINO ESP32 spinlock.h at {source_path} ---")
+         else:
+             # Fallback explicit search
+             for root, dirs, files in os.walk(package_dir_arduino):
+                if "spinlock.h" in files and "soc" in root and "/esp32/" in root.replace("\\", "/"):
+                    source_path = os.path.join(root, "spinlock.h")
+                    print(f"--- [ANTIGRAVITY] Found ARDUINO spinlock.h (Walk) at {source_path} ---")
+                    break
                 
     if not source_path and package_dir_idf:
         # Fallback to IDF
@@ -126,6 +135,16 @@ def copy_and_patch_spinlock(env):
     # CRITICAL: Use Prepend to force this directory to be searched BEFORE frameowrk includes
     env.Prepend(CPPPATH=[project_include])
     print(f"--- [ANTIGRAVITY] Prepended {project_include} to CPPPATH (Priority Override) ---")
+    
+    # FINAL VERIFICATION: Read back what we wrote
+    print(f"--- [ANTIGRAVITY] VERIFYING CONTENT OF: {dest_path} ---")
+    with open(dest_path, "r") as f:
+        final_lines = f.readlines()
+        for i, line in enumerate(final_lines):
+            if "rsr" in line.lower() and "prid" in line.lower():
+                 print(f"CRITICAL ERROR: Line {i+1} still contains PRID: {line.strip()}")
+            if "rsr" in line.lower() and "235" in line:
+                 print(f"SUCCESS: Line {i+1} matches ASM: {line.strip()}")
 
 disable_component(env, "app_trace")
 disable_component(env, "esp_gdbstub")
