@@ -55,15 +55,15 @@ def patch_spinlock_in_dir(package_dir):
                 
                 if re.search(pattern, content, re.IGNORECASE):
                     print(f"--- [ANTIGRAVITY] FOUND 'RSR(PRID)' in {spinlock_path}. Patching to 0xEB... ---")
+                    # Force all occurrences
                     new_content = re.sub(pattern, 'RSR(0xEB,', content, flags=re.IGNORECASE)
                     with open(spinlock_path, "w") as f:
                         f.write(new_content)
                     print(f"--- [ANTIGRAVITY] SUCCESS: {spinlock_path} patched. ---")
-                elif "RSR(0xEB," in content:
-                     print(f"--- [ANTIGRAVITY] ALREADY PATCHED: {spinlock_path} ---")
-                else:
-                     # print(f"--- [ANTIGRAVITY] Pattern not found in {spinlock_path} ---")
-                     pass
+                
+                # Double check verification for logging
+                if "RSR(0xEB," in content:
+                     print(f"--- [ANTIGRAVITY] INFO: {spinlock_path} contains patched RSR(0xEB). ---")
 
             except Exception as e:
                 print(f"--- [ANTIGRAVITY] EXCEPTION processing {spinlock_path}: {e} ---")
