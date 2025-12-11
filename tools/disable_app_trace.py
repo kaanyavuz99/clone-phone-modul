@@ -83,8 +83,8 @@ def copy_and_patch_spinlock(env):
     lines = content.splitlines()
     patched_lines = []
     
-    # TRACER ERROR: Verify we control this file
-    patched_lines.append('#error "ANTIGRAVITY_ACCESS_CONFIRMED: I CAN WRITE THIS FILE"')
+    # TRACER REMOVED
+    # patched_lines.append('#error "ANTIGRAVITY_ACCESS_CONFIRMED: I CAN WRITE THIS FILE"')
     
     asm_replacement = '    __asm__ __volatile__("rsr %0, 235" : "=r"(core_id));'
     
@@ -111,9 +111,9 @@ def copy_and_patch_spinlock(env):
     print(f"--- [ANTIGRAVITY] CREATED LOCAL OVERRIDE: {dest_path} ---")
     
     # Ensure build flags prioritize this directory
-    # PlatformIO adds include/ by default, but verify
-    env.Append(CPPPATH=[project_include])
-    print(f"--- [ANTIGRAVITY] Added {project_include} to CPPPATH ---")
+    # CRITICAL: Use Prepend to force this directory to be searched BEFORE frameowrk includes
+    env.Prepend(CPPPATH=[project_include])
+    print(f"--- [ANTIGRAVITY] Prepended {project_include} to CPPPATH (Priority Override) ---")
 
 disable_component(env, "app_trace")
 disable_component(env, "esp_gdbstub")
