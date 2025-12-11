@@ -34,60 +34,48 @@ def disable_component(env, component_name):
     except Exception as e:
         print(f"--- [ANTIGRAVITY] EXCEPTION: {e} ---")
 
-def patch_spinlock(env):
-    try:
-        platform = env.PioPlatform()
-        package_dir = platform.get_package_dir("framework-espidf")
-        if not package_dir: return
+def patch_spinlock_in_dir(package_dir):
+    if not package_dir: return
 
-        # Target file: components/esp_hw_support/include/soc/spinlock.h
-        spinlock_path = os.path.join(package_dir, "components", "esp_hw_support", "include", "soc", "spinlock.h")
-        
-        if os.path.isfile(spinlock_path):
-            print(f"--- [ANTIGRAVITY] FOUND: {spinlock_path} ---")
-            with open(spinlock_path, "r") as f:
-                content = f.read()
+    for root, dirs, files in os.walk(package_dir):
+        if "spinlock.h" in files:
+            spinlock_path = os.path.join(root, "spinlock.h")
+            # Only target the specific soc/spinlock.h file to avoid patching unrelated files
+            if "soc" not in spinlock_path and "include" not in spinlock_path:
+                 continue
             
-            import re
+            print(f"--- [ANTIGRAVITY] CHECKING: {spinlock_path} ---")
             
-            # Aggressive patch using Regex to handle spacing and case
-            # Target: RSR(PRID, ...) or RSR(prid, ...)
-            # Replace with: RSR(0xEB, ...)
-            
-            pattern = r'RSR\s*\(\s*PRID\s*,'
-            if re.search(pattern, content, re.IGNORECASE):
-                print(f"--- [ANTIGRAVITY] FOUND 'RSR(PRID)' pattern (Regex). Patching to 0xEB... ---")
-                new_content = re.sub(pattern, 'RSR(0xEB,', content, flags=re.IGNORECASE)
-                
-                with open(spinlock_path, "w") as f:
-                    f.write(new_content)
-                
-                # VERIFICATION: Read back and check
+            try:
                 with open(spinlock_path, "r") as f:
-                    final_content = f.read()
+                    content = f.read()
                 
-                if "RSR(0xEB," in final_content:
-                     print("--- [ANTIGRAVITY] VERIFICATION SUCCESS: File on disk contains RSR(0xEB, ---")
-                     # Print the line to be sure
-                     lines = final_content.splitlines()
-                     print(f"--- [ANTIGRAVITY] Line 83: {lines[82]}")
+                import re
+                pattern = r'RSR\s*\(\s*PRID\s*,'
+                
+                if re.search(pattern, content, re.IGNORECASE):
+                    print(f"--- [ANTIGRAVITY] FOUND 'RSR(PRID)' in {spinlock_path}. Patching to 0xEB... ---")
+                    new_content = re.sub(pattern, 'RSR(0xEB,', content, flags=re.IGNORECASE)
+                    with open(spinlock_path, "w") as f:
+                        f.write(new_content)
+                    print(f"--- [ANTIGRAVITY] SUCCESS: {spinlock_path} patched. ---")
+                elif "RSR(0xEB," in content:
+                     print(f"--- [ANTIGRAVITY] ALREADY PATCHED: {spinlock_path} ---")
                 else:
-                     print("--- [ANTIGRAVITY] VERIFICATION FAILED: File on disk DOES NOT contain RSR(0xEB, ! ---")
-            
-            elif "RSR(0xEB," in content:
-                 print(f"--- [ANTIGRAVITY] spinlock.h ALREADY PATCHED (numeric). ---")
-                 # Verify anyway
-                 lines = content.splitlines()
-                 print(f"--- [ANTIGRAVITY] Line 83: {lines[82]}")
-            else:
-                 print(f"--- [ANTIGRAVITY] WARNING: 'RSR(PRID,' pattern not found via Regex. ---")
-                 # Debug print again if missed
-                 lines = content.splitlines()
-                 print(f"Top 90 lines snippet:")
-                 print(lines[82])
+                     # print(f"--- [ANTIGRAVITY] Pattern not found in {spinlock_path} ---")
+                     pass
 
-    except Exception as e:
-        print(f"--- [ANTIGRAVITY] EXCEPTION: {e} ---")
+            except Exception as e:
+                print(f"--- [ANTIGRAVITY] EXCEPTION processing {spinlock_path}: {e} ---")
+
+def patch_spinlock(env):
+    platform = env.PioPlatform()
+    
+    # Patch in framework-espidf
+    patch_spinlock_in_dir(platform.get_package_dir("framework-espidf"))
+    
+    # Patch in framework-arduinoespressif32
+    patch_spinlock_in_dir(platform.get_package_dir("framework-arduinoespressif32"))
 
 disable_component(env, "app_trace")
 disable_component(env, "esp_gdbstub")
