@@ -94,7 +94,7 @@ def copy_and_patch_spinlock(env):
                 patched_lines = []
                 for line in lines:
                     line_lower_val = line.lower()
-                    if "rsr" in line_lower_val and ("prid" in line_lower_val or "0xeb" in line_lower_val):
+                    if "rsr" in line_lower_val and ("prid" in line_lower_val or "0xeb" in line_lower_val or "235" in line_lower_val):
                         print(f"--- [ANTIGRAVITY] MATCH FOUND! Patching line: {line.strip()} ---")
                         patched_lines.append(asm_replacement)
                     else:
