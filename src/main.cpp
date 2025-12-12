@@ -39,6 +39,8 @@ bool ppp_connected = false;
 void modemInit();
 u32_t ppp_output_callback(ppp_pcb *pcb, u8_t *data, u32_t len, void *ctx);
 void ppp_status_cb(ppp_pcb *pcb, int err_code, void *ctx);
+void onWiFiEvent(WiFiEvent_t event,
+                 WiFiEventInfo_t info); // Added Forward Declaration
 
 // --- Setup ---
 void setup() {
@@ -56,6 +58,7 @@ void setup() {
 
   // 3. Start Wi-Fi SoftAP
   Serial.println("Starting Wi-Fi SoftAP...");
+  WiFi.onEvent(onWiFiEvent); // Register Event Handler
   WiFi.softAP(ap_ssid, ap_pass);
   IPAddress myIP = WiFi.softAPIP();
   Serial.print("AP IP Address: ");
@@ -113,6 +116,35 @@ u32_t ppp_output_callback(ppp_pcb *pcb, u8_t *data, u32_t len, void *ctx) {
   return Serial1.write(data, len);
 }
 
+// --- Wi-Fi Event Handler ---
+void onWiFiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
+  switch (event) {
+  case ARDUINO_EVENT_WIFI_AP_STACONNECTED:
+    Serial.print("[Wi-Fi] Client Connected. MAC: ");
+    for (int i = 0; i < 6; i++) {
+      Serial.printf("%02X", info.wifi_ap_staconnected.mac[i]);
+      if (i < 5)
+        Serial.print(":");
+    }
+    Serial.println();
+    break;
+  case ARDUINO_EVENT_WIFI_AP_STADISCONNECTED:
+    Serial.print("[Wi-Fi] Client Disconnected. MAC: ");
+    for (int i = 0; i < 6; i++) {
+      Serial.printf("%02X", info.wifi_ap_stadisconnected.mac[i]);
+      if (i < 5)
+        Serial.print(":");
+    }
+    Serial.println();
+    break;
+  default:
+    break;
+  }
+}
+
+// ... inside setup() verify call ...
+// WiFi.onEvent(WiFiEvent); // Must be called in setup
+
 // Status Callback: Connection State Changes
 void ppp_status_cb(ppp_pcb *pcb, int err_code, void *ctx) {
   struct netif *pppif = ppp_netif(pcb);
@@ -126,6 +158,18 @@ void ppp_status_cb(ppp_pcb *pcb, int err_code, void *ctx) {
     Serial.println(ip4addr_ntoa(netif_ip4_gw(pppif)));
     Serial.print("   MS: ");
     Serial.println(ip4addr_ntoa(netif_ip4_netmask(pppif)));
+
+    // DNS Logging
+    const ip_addr_t *dns_addr = dns_getserver(0);
+    if (dns_addr != NULL) {
+      Serial.print("   DNS1: ");
+      Serial.println(ip4addr_ntoa(ip_2_ip4(dns_addr)));
+    }
+    dns_addr = dns_getserver(1);
+    if (dns_addr != NULL) {
+      Serial.print("   DNS2: ");
+      Serial.println(ip4addr_ntoa(ip_2_ip4(dns_addr)));
+    }
 
     // --- CRITICAL: ENABLE NAT HERE ---
     // NAPT allows Wi-Fi clients (192.168.4.x) to masquerade as PPP IP
