@@ -139,9 +139,19 @@ def copy_and_patch_spinlock(env):
         os.makedirs(dest_dir)
 
     if local_source_content:
-        with open(dest_path, "w") as f:
-            f.write(local_source_content)
-        print(f"--- [ANTIGRAVITY] Local override created at {dest_path} ---")
+        # Check if already patched to avoid overwriting valid git file
+        already_patched = False
+        if os.path.exists(dest_path):
+            with open(dest_path, "r") as f:
+                existing_content = f.read()
+            if "core_id = 0; // [ANTIGRAVITY]" in existing_content:
+                print(f"--- [ANTIGRAVITY] SKIP: {dest_path} already contains patch. ---")
+                already_patched = True
+        
+        if not already_patched:
+            with open(dest_path, "w") as f:
+                f.write(local_source_content)
+            print(f"--- [ANTIGRAVITY] Local override created at {dest_path} ---")
      
     # Ensure build flags prioritize this directory
     env.Prepend(CPPPATH=[project_include])
