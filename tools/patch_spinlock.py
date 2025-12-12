@@ -49,7 +49,7 @@ def copy_and_patch_spinlock(env):
     # We will search the entire packages directory to be sure
     packages_dir = platform.get_package_dir("framework-espidf")
     if packages_dir:
-        packages_dir = os.path.dirname(packages_dir) # Go up to .platformio/packages
+        pass # packages_dir = os.path.dirname(packages_dir) # REMOVED: Do not scan entire packages dir!
     
     target_files = []
     
@@ -147,7 +147,7 @@ def copy_and_patch_spinlock(env):
     env.Prepend(CPPPATH=[project_include])
     print(f"--- [ANTIGRAVITY] Prepended {project_include} to CPPPATH ---")
 
-disable_component(env, "app_trace")
+# disable_component(env, "app_trace") # RE-ENABLED: Needed for esp_system
 disable_component(env, "esp_gdbstub")
 
 # Execute the Override Strategy
